@@ -1,0 +1,96 @@
+\section{General information}
+    The area of \emph{Computational Geometry} was established between 1975 and 1980. Its goals were the design and analysis of algorithms and data structures for geometric problems. Which are problems, often motivated by applications in the real world that can be formulated in terms of geometric objects, such as points, lines, polygons and similar. Especially the design of efficient algorithms for these problems is a major goal of computational geometry. In the following we will list some popular applications of computational geometry: 
+    \begin{itemize}[itemsep=-3pt]
+        \item \emph{Computer graphics}, e.g. for rendering scenes in video games.
+        \item \emph{Data visualization}, e.g. for charts and maps.
+        \item \emph{Geographic information systems}, e.g. for routing in navigation systems or for finding the nearest warehouse to a customer.
+        \item \emph{Computer vision} and \emph{pattern recognition}, e.g. for object detection in images by artificial intelligence.
+        \item \emph{Robotics}, e.g. for autonomous driving and collision avoidance.
+    \end{itemize}
+
+\section{Motivating problems}
+    To further motivate the field of computational geometry, we will list some problems that can be solved using algorithms developed in the context of computational geometry. 
+    \begin{enumerate}
+        \item \textbf{Problem:} Finding the nearest warehouse to a customer. \\
+        \textbf{Solution:} Use \emph{Voronoi diagrams}. \\
+        \textbf{Approach:} Fortune's algorithm.
+
+        \item \textbf{Problem:} Find places where roads cross rivers on a map. \\
+        \textbf{Solution:} Use knowledge about \emph{line segment intersection} problems. \\
+        \textbf{Approach:} Bentley-Ottmann (sweep line) algorithm.
+
+        \item \textbf{Problem:} Given a long-lat coordinate, return the country it is in. \\ 
+        \textbf{Solution:} Use knowledge about \emph{point location} problems. \\
+        \textbf{Approach:} Trapezoidal maps.
+
+        \item \textbf{Problem:} Find datapoints that lie in a given range. \\
+        \textbf{Solution:} Use \emph{range trees}. \\
+        \textbf{Approach:} kD-Trees.
+
+        \item \textbf{Problem:} Place cameras, such that a room is fully monitored. \\
+        \textbf{Solution:} Use \emph{polygon triangulation} and a \emph{3-coloring}. \\
+        \textbf{Approach:} Half-edge-data structure.
+    \end{enumerate}
+
+\section{Geometric objects}
+    As mentioned above, computational geometry is concerned with geometric objects. As we will mainly focus on 2D-problems, we will only consider the most relevant 2D-objects.
+
+    \begin{definition}[Geometric objects]
+        In the following we will define a... 
+        \begin{itemize}[itemsep=-3pt]
+            \item \emph{point} as the element of $d$-dimensional euclidean space $\RR^d$,
+            
+            \item \emph{line} as set of the form $L_{pq} := \{\lambda p + (1 - \lambda)q : \lambda \in \RR\}$ for two points $p$ and $q$,
+            
+            \item \emph{line segment} as set of the form $\overline{pq} := \{\lambda p + (1 - \lambda)q : \lambda \in [0, 1]\}$ for two points $p$ and $q$,
+            
+            \item \emph{polygon chain} as the tuple $P := (\overline{p_ip_{i+1}})_{i \in \{0, \dots, n-1\}}$ with points $p_0, \dots, p_n$. Moreover, $P$ is called \emph{simple}, if it does not intersect itself and
+            
+            \item \emph{polygon} as he set $P$ of all points that are bounded by a simple polygon chain $(\overline{p_ip_{i+1}})_{i \in \{0, \dots, n-1\}}$ with $p_0 = p_n$.
+        \end{itemize}
+    \end{definition}
+
+\section{Runtime analysis}
+    Since we are interested in the efficiency of the presented algorithms, we will briefly introduce central concepts for the runtime analysis of algorithms. First, we have to agree on some primitive operations that can be executed in constant time. The most important primitive operations are:
+    \begin{itemize}[itemsep=-3pt]
+        \item Calculating $g \cap h$ for two lines $g$ and $h$.
+        \item Calculating $g \cap h$ for two line segments $g$ and $h$.
+        \item Checking $p \in s$ for a point $p$ and a line segment $s$.
+        \item Checking $p \in H$ for a point $p$ and a half-space $H$.
+    \end{itemize}
+    To get a better intuition of operations that are primitive, we will list some that are not. For example: 
+    \begin{itemize}[itemsep=-3pt]
+        \item Checking $p \in P$ for a polygon $P$.
+        \item Calculating $P \cap Q$ for two polygons $P$ and $Q$.
+        \item Calculating $\bigcap_{i \in I} g_i$ for an arbitrary finite family of line segments $g_i$.
+    \end{itemize}
+    To make the runtime analysis of algorithms more precise, we will introduce the following notation. Albeit very mathematical, it will proof itself to be of great use in the following sections.
+
+    \begin{definition}[$\LO$-calculus] 
+        The \emph{asymptotic runtime} of a function $f$ with respect to another function $g$ can be classified as follows\footnotemark{}:
+        \begin{itemize}[leftmargin=*]
+            \item $f \in \Omega(g) := \{h: \NN \to \RR_+ : \exists c \in \RR_+ \ \exists n_0 \in \NN \ \forall n \geq n_0 : g(n) \leq c g(n)\}$
+            
+            \item $f \in \Theta(g) := \{h: \NN \to \RR_+ : \exists c_1, c_2 \in \RR_+ \ \exists n_0 \in \NN \ \forall n \geq n_0 : c_1 g(n) \leq h(n) \leq c_2 g(n)\}$
+            
+            \item $f \in \LO(g) := \{h: \NN \to \RR_+ : \exists c \in \RR_+ \ \exists n_0 \in \NN \ \forall n \geq n_0 : c g(n) \leq h(n)\}$
+        \end{itemize}
+    \end{definition}
+    
+    \footnotetext{In the following we will abuse this notation and use relations like $=$ and operations like $\cdot$ and $+$ on the sets $\LO$, respectively, $\Omega$ and $\Theta$ as if they were a function contained in that set.}
+    Since this notation is very cumbersome to work with, we will state a central theorem for computing those runtimes in the case they are described in a recursive manner.
+    \begin{theorem}[Master theorem] 
+        Let $a \geq 1$ and $b > 1$ be constants and $f$ and $g$ be functions. Moreover, let $T(n)$ be a recurrence of the form
+        \begin{equation*}
+            T(n) = a T\left(\frac{n}{b}\right) + f(n)
+        \end{equation*}
+        where $\frac{n}{b}$ is rounded up or down if necessary. Then 
+        \begin{enumerate}[label=(\roman*)]
+            \item $T \in \Theta(n^{\log_b(a)})$, if $f \in \LO(n^{\log_b(a) - \epsilon})$ for some $\epsilon > 0$,
+            
+            \item $T \in \Theta(n^{\log_b(a)}\log(n))$, if $f \in \Theta(n^{\log_b(a)})$ and
+            
+            \item $T \in \Theta(f)$, if $f \in \Omega(n^{\log_b(a) + \epsilon})$ for some $\epsilon > 0$ and $af(nb^{-1}) < f(n)$.
+        \end{enumerate}
+    \end{theorem}
+

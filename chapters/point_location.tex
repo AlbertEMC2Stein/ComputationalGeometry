@@ -1,0 +1,204 @@
+\section{Applications}
+    Recall the problem stated in chapter \ref{ch:range-_and_kd-trees} where we wanted to find points within a given region. This time, we want to solve the inverse problem: Given a point, find the region containing it. \\
+    Two applications relying on a efficient solution to this problem are:
+    \begin{enumerate}
+        \item \textbf{Geo-coordinates to country.} \\
+        \textbf{Problem:} Given a set of long-lat-coordinates, find the country in which this coordinates are located in. \\ 
+        \textbf{Solution:} Use a space partition that efficiently searches the countries near that coordinates until a country is found that contains them. 
+
+        \item \textbf{GUI interaction.} \\
+        \textbf{Problem:} Given a graphical user interface (GUI) with buttons and a mouse-click event, decide wether a button was clicked and execute its associated action. \\
+        \textbf{Solution:} Partition the GUI in a way that the buttons near the given position can be efficiently searched for a click. 
+    \end{enumerate}
+
+\section{Definitions}
+    Prior to further investigation of this problem and the development of a solution, we need to fix some notation first.
+    
+    \begin{definition}[Non-crossing line segments] 
+        Two segments $s_1$ and $s_2$ are \emph{non-crossing} if they do not intersect and or the intersection is a common endpoint. 
+    \end{definition}
+
+    \begin{definition}[General position]
+        A set $S$ of $n$ non-crossing segments whose endpoints are in $x$-general position\footnotemark is called a set of \emph{line segments in general position}.
+    \end{definition}
+    \footnotetext{Meaning that no points share the same $x$-coordinate. This can be achieved by shearing the coordinate system. As this would require a lot of unnecessary computations, this is usually done symbolically by sorting the points lexicographically.}
+
+    \begin{definition}[Extensions and bounding box]
+        Let $R$ be a rectangle containing all of $S$. Then $R$ is called a \emph{bounding box} of $S$. Moreover, for each endpoint $p$ of a segment $s \in S$ we define $E^+(p)$ and $E^-(p)$ as the upper, respectively, lower \emph{extension} of $p$, i.e. the vertical line segments extending upwards, respectively, downwards from $p$ until they either hit another segment $s' \in S$ or the bounding box $R$.
+    \end{definition}
+
+    These definition now allow us to introduce the object central to this chapter, the trapezoidal map.
+
+    \begin{definition}[Trapezoidal map]
+        Let $S$ be a set of line segments in general position. Then, the \emph{trapezoidal map} $T(S)$ is the subdivision of the plane induced by $S$, a bounding box $R$ and the set of upper and lower extensions of all endpoints of segments in $S$, i.e. $\bigcup_{v \in S} \{E^+(v), E^-(v)\}$.
+    \end{definition} 
+
+    \begin{definition}[Faces, sides and vertices]
+        A \emph{face} in a trapezoidal map $T(S)$ is a region bounded by a number of edges in $T(S)$. Segments of maximal length bounding a face form the \emph{sides} of said face. Finally the meeting point of two sides is called a \emph{vertex}.
+    \end{definition} 
+
+    As these definitions do not specify any spatial relationship between the trapezoids, we need to define the final two concepts before continuing with the actual development of a data structure and algorithm.
+
+    \begin{definition}[Adjacency]
+        Two faces in $T(S)$ are called \emph{adjacent} if they share a vertical edge.
+    \end{definition}
+
+    \begin{definition}[top, bottom, leftp and rightp]
+        Consider a face $\Delta$ in a trapezoidal map $T(S)$. Then, $\Delta.\text{top}$ and $\Delta.\text{bottom}$ refer to the upper, respectively, lower non-vertical sides of $\Delta$. The left and right side of $\Delta$ are either a vertical side or a vertex, in case $\Delta$ is a degenerate trapezoid, i.e. a triangle. In both cases we can uniquely (since the points are in $x$-general position) define $\Delta.\text{leftp}$ and $\Delta.\text{rightp}$, referring to the vertices in $T(S)$ lying within the left, respectively, right side of $\Delta$.
+    \end{definition}
+
+\section{Data structure}
+    To see why the trapezoidal map is a good choice for the problem at hand, we first need to understand what problems arise if we approach this problem in a naive way. But first, let us specify the problem more formally:
+    \begin{mdframed}
+        Given a tesselation of the plane $S$ in general position and a point $q$, find the polygon $P \in S$ such that $q \in P$.
+    \end{mdframed} 
+
+    \subsection{Naive approach} 
+        A first approach would be to insert a vertical line for each vertex $v \in S$ creating a set of 'slabs' consisting of trapezoidal pieces. Then, one would look for the slab containing $q$ and find the polygon $P$ that contains $q$ by checking each trapezoidal pice within that slab. \\
+        Although this may seem like a promising attempt on solving this problem, one can come up rather quickly with an example where this approach breaks down. To this end, consider a scenario where $S$ contains $\frac{n}{4}$ (wider than tall) rectangles stacked on top of each other, where one of the rectangles is horizontally split into two halves by a jagged polygon chain consisting of $\frac{n}{4} + 1$ vertices. Then there are a total of $\frac{n}{4}$ slabs each consisting of $\frac{n}{4} + 2$ trapezoidal pieces. Thus, the naive approach has a worst-case running time and memory requirement of $\LO(n^2)$ which is undesirable. 
+    
+    \subsection{Trapezoidal map}
+        To reduce the memory consumption arising from naively partitioning our space into vertical slabs, we can enclose the tesselation by a bounding box $R$ and use a partition that uses vertical lines for each vertex $v \in S$ that only extend to the bounding box or another edge within $S$. To avoid edge cases we may further assume that the points are in $x$-general position. This now motivates the usage of the trapezoidal map $T(S)$ that we introduced in the last section. Moreover, we want to provide some facts that will be useful for the analysis of the algorithms developed in the upcoming section. 
+
+        \begin{lemma}
+            A trapezoidal map $T(S)$ of a planar tesselation $S$ with $n$ edges in general position has at most $6n + 4$ vertices and $3n + 1$ trapezoids. 
+        \end{lemma}
+        \begin{proof}
+            Via induction over $n$ and the maximal number of trapezoids that can share the same left point. 
+        \end{proof}
+
+        \begin{lemma}
+            A trapezoid $\Delta$ in a trapezoidal map $T(S)$ in general position has at most four adjacent trapezoids.
+        \end{lemma}
+        \begin{proof}
+            Since the trapezoidal map is in general position, no two vertices can have the same $x$-coordinate. Thus, the left and right vertical sides of $\Delta$ contain at most one vertex splitting the side into at most two edges. If one of the sides is degenerate, i.e. only a single vertex $v$, there can be at most two further trapezoids containing that vertex. Thus the number of adjacent trapezoids is at most four. 
+        \end{proof}
+
+        \begin{remark}
+            A trapezoidal map is implemented in a way such that each trapezoid $\Delta$ has a pointer to the points $\Delta.\text{leftp}$ and $\Delta.\text{rightp}$, the edges $\Delta.\text{top}$ and $\Delta.\text{bottom}$ and the (at most) four adjacent trapezoids. This allows for the retrieval $\Delta$'s geometry in constant time.
+        \end{remark}
+        \footnotetext{Although not explicitly stated, we will also use the leftp, respectively, rightp pointer for line segments.}
+        
+
+\section{Algorithms}
+    Before we can solve our original problem of identifying the polygon $P \in S$ containing a point $q$, we need to construct a trapezoidal map $T(S)$ for the tesselation $S$ and find a way of efficiently traversing it to find the trapezoid containing $q$. Only then will we be able to find the polygon $P \in S$ containing $q$. 
+
+    \subsection{Construction of a trapezoidal map}
+        Before we start constructing the trapezoidal map, we should think about its use in the original searching-problem. To do so, we assume that we already are provided with a trapezoidal map for our tesselation $S$. If we want to find the trapezoid containing our point of interest $q$, we start at the root of the trapezoidal map $T(S)$ and alternatingly check if $q$ lies to the left or the right of a vertical line or above, respectively, below the currently selected line segment in $S$. \\
+        This process now raises the question of how to construct a data structure that allows to efficiently execute this search-algorithm efficiently in the first place. \\
+        As this problem-class seems familiar by now, it might not be a surprise to see spatial subdivisions showing up again. Hence, we will proceed by using a search data structure similar to a kD-tree by using $x$-nodes pointing to vertices of $S$ and $y$-nodes pointing to edges, or rather line segments, in $S$. Contrary to kD-trees however, these nodes do not need to be traversed in a fixed order. Thus, our search data structure won't be a tree but a directed acyclic graph (DAG). Similar to the BSP-trees, the order in which these nodes are created is heavily dependent on the order the segments are inserted. Hence, we again rely on using a random insertion order. If we can guarantee that after the $i$-th insertion the search data structure $D$ for the tesselation $S_i := \{s_1, \dots, s_i \}$ is correct then the data structure will be correct for $S$ by an inductive argument. 
+
+        \begin{breakablealgorithm}
+            \caption{Construction of a trapezoidal map}  
+            \label{alg:trapezoidalmap}
+            \begin{algorithmic}[1]
+                \Input{A set of $n$ non-crossing edges $S$ in general position.}
+                \Output{A trapezoidal map $T(S)$ of $S$ and the corresponding search data structure $D$.}
+                \Runtime{$\LO^\ast(n\log(n))$}
+                \Procedure{TrapezoidalMap}{$S$}
+                    \State{$R \gets \text{ComputeBoundingBox}(S)$}
+                    \State{$T \gets \text{Node}(R)$}
+                    \State{$D \gets \text{Node}(R)$}
+                    \State{$S^\ast \gets \text{Shuffle}(S)$}
+                    \For{$i = 1, \dots, n$}
+                        \State{$\Delta \gets \text{IntersectedTrapezoids}(s^\ast_i, T, D)$}
+                        \State{Update($s^\ast_i, \Delta, T, D$)}
+                    \EndFor
+                    \State{\Return{$T, D$}}
+                \EndProcedure
+                \Procedure{IntersectedTrapezoids}{$s^\ast_i, T, D$}
+                    \State{$p \gets s^\ast_i.\text{leftp}$}
+                    \State{$q \gets s^\ast_i.\text{rightp}$}
+                    \State{$\Delta_0 \gets D.\text{query}(p)$}
+                    \State{$j \gets 0$}
+                    \While{$\Delta_j.\text{rightp} = q$}
+                        \If{$\Delta_j.\text{rightp} > q$}
+                            \State{$\Delta_{j+1} \gets \Delta_j.\text{lowerright}$}
+                        \Else
+                            \State{$\Delta_{j+1} \gets \Delta_j.\text{upperright}$}
+                        \EndIf
+                        \State{$j \gets j + 1$}
+                    \EndWhile
+                    \State{\Return{$\Delta_0, \dots, \Delta_j$}}
+                \EndProcedure
+                \Procedure{Update}{$s^\ast_i, \Delta, T, D$}
+                    \State{$p \gets s^\ast_i.\text{leftp}$}
+                    \State{$q \gets s^\ast_i.\text{rightp}$}
+                    \State{$\Delta_0, \dots, \Delta_k \gets \Delta$}
+                    \If{$p \in \Delta_0$}
+                        \State{$D.\text{remove}(\Delta_0)$}
+                        \State{$D.\text{insertX}(p, \Delta_0, \text{NewTrapezoid}(p, \Delta_0), \text{left})$}
+                    \EndIf
+                    \If{$q \in \Delta_k$}
+                        \State{$D.\text{remove}(\Delta_k)$}
+                        \State{$D.\text{insertX}(q, \Delta_k, \text{NewTrapezoid}(q, \Delta_k), \text{right})$}
+                    \EndIf
+                    \For{$j = 0, \dots, k$}
+                        \State{$D.\text{remove}(\Delta_j)$}
+                        \State{$D.\text{insertY}(s^\ast_i, \Delta_j, \text{Split}(s^\ast_i, \Delta_j))$}
+                    \EndFor
+                    \State{$D.\text{joinTrapezoids}()$}
+                    \State{$T.\text{updatePointers}(D)$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \begin{remark}
+            In the procedure IntersectedTrapezoids it is possible to query the search data structure $D$ for the trapezoid $\Delta_0$ that contains $q$ in the $i$-th step, since $D$ is already correctly constructed for the previous segments $s^\ast_j$ with $j < i$\footnote{In the beginning $D$ only has one leaf, namely the bounding box $R$ which must contain $q$.}. If, however, $p$ exists as endpoint of another segment already inserted into $T$, i.e. on an $x$- or $y$-node in $D$, one has to consider the following cases: 
+            \begin{enumerate}
+                \item $p$ lies on an $x$-node: In this case the search for $\Delta_0$ is continued on the right subtree of the $x$-node.
+                
+                \item $p$ lies on a $y$-node: In this case $p$ has to be the endpoint of a segment $s^\ast_j \in S^\ast$ with $j < i$. Here, one must consider the slope of the segments involved. If the slope of $s^\ast_i$ is larger than the slope of $s^\ast_j$ then the search for $\Delta_0$ is continued in the upper subtree of the $y$-node. Otherwise, the search is continued in the lower subtree.
+            \end{enumerate}
+            Moreover, in the Update procedure one should integrate the pointer updates in $T$ into the search data structure update to improve the runtime of the algorithm to one in $\LO(k)$.
+        \end{remark}
+
+        \begin{theorem}
+            The algorithm TrapezoidalMap generates a trapezoidal map $T(S)$ with expected memory requirements in $\LO^\ast(n)$ and allows for point queries in $\LO^\ast(\log(n))$ expected time. 
+        \end{theorem}
+        \begin{proof}
+            First we show the statement for point queries. Let $p$ be a point to be queried and let $X_i$ denote the number of nodes by which the search path to find $p$ grows when inserting $s^\ast_i$ into $T$, and hence $D$. The expected length of the complete search part thus is given by
+            $$\EE\left[ \sum_{i=1}^n X_i \right] = \sum_{i=1}^n \EE[X_i]$$
+            which we now want to calculate. For each additional segment added to $T$, respectively, $D$, the search path length grows by at most three, since the algorithm adds no more than three levels to the search data structure at any given point. Thus, we have $X_i \leq 3$ and $\EE[X_i] \leq 3P_i$, where $P_i$ is the probability for $X_i > 0$. We now want to bound $P_i$. For this, note that the search path to $p$ only grows in the $i$-th step, if the trapezoid containing $p$ is changed by the insertion of $s^\ast_i$. This happens if and only if $s^\ast_i$ determines a side of the trapezoid containing $p$ after the splitting has happened. Because the set $\{s_0, \dots, s_i\}$ has $i$ edges and all are equally likely to be $s^\ast_i$, each of these four cases has a probability of at most $\frac{1}{i}$, hence $P_i \leq \frac{4}{i}$. This yields
+            $$\EE\left[ \sum_{i=1}^n X_i \right] \leq \sum_{i=1}^n 3P_i \leq 12 \sum_{i=1}^n \frac{1}{i} = 12H_n \leq 12\log(n) .$$
+            This shows the first part of the theorem. \\
+            Due to a previous lemma we know that the number of trapezoids in $T(S_i)$ with $S_i := \{s^\ast_1, \dots, s^\ast_i\}$ is bounded by $3i + 1$. The size of $D$ now depends on the number of trapezoids and inner nodes. To estimate the number of inner nodes after the insertion of $s^\ast_i$ we denote the number of new trapezoids after the insertion of this segment by $k_i$ and immediately get that the number of new inner nods in step $i$ is $k_i - 1$. Thus, the expected memory usage of $D$ is given by
+            $$\LO(n) + \EE\left[ \sum_{i=1}^n (k_i - 1) \right] = \LO(n) + \sum_{i=1}^n \EE[k_i] .$$
+            To determine $\EE[k_i]$ for $\Delta \in T(S_i)$ and $s \in S_i$ we define
+            $$\delta(\Delta, s) := \begin{cases} 1 &\text{if $\Delta$ disappears from $T(S_i)$ when $s$ is removed} \\ 0 &\text{otherwise} \end{cases} .$$
+            Because there are at most four segments causing $\Delta$ to disappear, we obtain
+            $$\sum_{s \in S_i} \sum_{\Delta \in T(S_i)} \delta(\Delta, s) \leq 4\vert T(S_i) \vert = \LO(i) .$$ 
+            Averaging over the expected number of inserted trapezoids $k_i$ now yields
+            $$\EE[k_i] = \frac{1}{i} \sum_{s \in S_i} \sum_{\Delta \in T(S_i)} \delta(\Delta, s) \leq \frac{\LO(i)}{i} = \LO(1) .$$
+            Thus, the expected number of new inner nodes is constant for each step resulting in an overall expected memory requirement of $\LO^\ast(n)$.
+        \end{proof}
+
+        Although we have not stated it explicitly, the previous theorem assumed that the algorithm computes the trapezoidal map $T(S)$ correctly. This however was not shown yet. Thus, we have to argue that the algorithm indeed efficiently generates a correct trapezoidal map before concluding this section.
+
+        \begin{proposition}
+            The algorithm TrapezoidalMap correctly generates a trapezoidal map $T(S)$ and its associated search data structure $D$ with an expected runtime in $\LO^\ast(n\log(n))$.
+        \end{proposition}
+        \begin{proof}
+            Since correctness already follows from the loop-invariant, we only need to show the promised runtime complexity. \\
+            Accounting for the initialization, the permutation of the segments in the beginning and the repeated search for $\Delta_0$ and insertions of $k_i$ trapezoids, respectively, $k_i - 1$ inner nodes we get a total expected runtime of
+            $$\LO(1) + \LO(n) + \sum_{i=1}^n (\LO^\ast(\log(i)) + \LO(\EE[k_i])) = \LO^\ast(n\log(n)) .$$
+            This now concludes the proof.
+        \end{proof}
+
+        \begin{remark}
+            Since the analysis of the algorithm's runtime is based on the random ordering of the segments, the expected runtime does not depend on the randomness of the input itself. Thus, there are no tessellations $S$ for which the runtime is significantly better than expected.
+        \end{remark}
+
+    \subsection{Face search}
+        Now that we have the necessary search data structure and the algorithm to generate a trapezoidal map encompassing it, we can finally solve the problem that initially motivated the construction of this data structure. \\
+        As this procedure is not very complicated but rather included for completeness' sake, we will not give a detailed proof. Instead, we will only give a short outline of the algorithm: \\
+
+        \begin{outline}{FaceSearch}
+            \begin{enumerate}
+                \item Generate the trapezoidal map $T(S)$ and its associated search data structure $D$.
+                
+                \item Find the trapezoid $\Delta$ containing $p$ by performing a point query in $D$.
+                
+                \item Use $\Delta.\text{top}$ and $\Delta.\text{bottom}$ to determine the face containing $\Delta$ and thus $p$.
+            \end{enumerate}
+        \end{outline}

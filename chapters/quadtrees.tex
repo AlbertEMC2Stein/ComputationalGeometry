@@ -1,0 +1,90 @@
+\section{Applications}
+    Having discussed various sweep line algorithms, we now want to turn our attention to so-called spatial subdivision data structures. These data structures are used to efficiently answer point or range queries in a given space. In this chapter, we will discuss the point quadtree, a data structure that allows for efficient point queries. Spatial subdivision data structures are used in a variety of applications across multiple fields of study. Here are some examples:
+    \begin{enumerate}
+        \item \textbf{Collision detection.} \\
+        \textbf{Problem:} Given a set of circular objects, determine which objects are in collision. \\
+        \textbf{Solution:} Partition the space into smaller spaces and only check objects in the same or neighboring spaces.
+        
+        \item \textbf{Image compression.} \\
+        \textbf{Problem:} Given an image, try to reduce its size below a given bound. \\
+        \textbf{Solution:} Group regions of similar color. Then color each region with the average color of all pixels contained in that region. Finally, run-length encode the resulting image.
+
+        \item \textbf{Contrast detection.} \\
+        \textbf{Problem:} Given an image, group regions of low contrast. \\
+        \textbf{Solution:} Consider each pixel as a point with a value associated to it. If the maximal and minimal value differ by more than a given bound $b$, subdivide the image into four sub-images. Repeat this procedure until the maximal and minimal value differ by at most $b$ or a sub-image only consists of a single pixel.
+    \end{enumerate}
+
+\section{Data structure}
+    To represent a spatial subdivision allowing for efficient point queries, we will use a:
+
+    \begin{definition}[Point quadtree] 
+        Let $\sigma := [x_1, x_2] \times [y_1, y_2]$ be a square in the plane and $S$ be a finite set of points in $\sigma$. If $\vert S \vert \leq 1$, the point quadtree $Q_S$ for $S$ is a single leaf storing $\sigma$ and $S$. Otherwise, let $Q_{\text{NE}}, Q_{\text{NW}}, Q_{\text{SW}}$ and $Q_{\text{SE}}$ be the four subtrees of $Q_S$ such that 
+        \begin{alignat*}{2}
+            Q_{\text{NE}}.S &= \left\{ (x, y) \in S : x \geq x_\text{mid} \land y \geq y_\text{mid} \right\} \quad\!\text{and}\quad Q_{\text{NE}}.\sigma &&= \left[ x_\text{mid}, x_2 \right] \times \left[ y_\text{mid}, y_2 \right], \\
+            Q_{\text{NW}}.S &= \left\{ (x, y) \in S : x < x_\text{mid} \land y \geq y_\text{mid} \right\} \quad\!\text{and}\quad Q_{\text{NW}}.\sigma &&= \left[ x_1, x_\text{mid} \right] \times \left[ y_\text{mid}, y_2 \right], \\
+            Q_{\text{SW}}.S &= \left\{ (x, y) \in S : x < x_\text{mid} \land y < y_\text{mid} \right\} \quad\!\text{and}\quad Q_{\text{SW}}.\sigma &&= \left[ x_1, x_\text{mid} \right] \times \left[ y_1, y_\text{mid} \right] \text{ and} \\
+            Q_{\text{SE}}.S &= \left\{ (x, y) \in S : x \geq x_\text{mid} \land y < y_\text{mid} \right\} \quad\!\text{and}\quad Q_{\text{SE}}.\sigma &&= \left[ x_\text{mid}, x_2 \right] \times \left[ y_1, y_\text{mid} \right]. 
+        \end{alignat*}
+        with $x_\text{mid} = \frac{x_1 + x_2}{2}$ and $y_\text{mid} = \frac{y_1 + y_2}{2}$. If for any of the four subtrees $Q_D$ it holds that $\vert Q_D.S \vert > 1$, the subtree is subdivided again according to the rules above. 
+    \end{definition}
+
+    \begin{remark} 
+        Variants of this definition may allow for larger subtrees, e.g. $Q_L$ may be a single leaf storing $\sigma$ and $S$ if $\vert S \vert \leq 4$.
+    \end{remark} \ \\
+
+    Looking at this definition, it is immediate that the structure of a point quadtree is strongly dependent on the input. If the input is highly concentrated in a certain region, the quadtree will become badly unbalanced. This can lead to a large number of leaf nodes, which in turn can lead to a large number of comparisons in collision detection or image compression. We thus want to find out, how the depth and other structural properties of a point quadtree depend on the input. 
+
+    \begin{lemma}[Bound on the depth of a quadtree]
+        Let $S$ be a finite set of points in $\sigma := [x_1, x_2] \times [y_1, y_2]$ as above. Then the depth of the point quadtree $Q_S$ is at most $\log(ld_{\min}^{-1}) + \frac{3}{2}$, where $l := x_2 - x_1$ is the sidelength of $\sigma$ and $d_{\min} := \min_{x, y \in S, x \neq y}(\Vert x - y \Vert_2)$ the minimal distance between two points in $S$. 
+    \end{lemma}
+    \begin{proof} 
+        W.l.o.g. we assume $l = 1$. Then the sidelength of a square $\sigma$ on level $i$ is $2^{-i}$. Thus the maximal distance of points in a square on level $i$ is $2^{-i}\sqrt{2}$ by Pythagoras' theorem. If $d_{\min} \leq 2^{-i}\sqrt{2}$, a non-leaf square $\sigma$ contains at least two points. Hence, $i \leq \log(ld_{\min}^{-1}) + \frac{1}{2}$. Accounting for leaves one level below we get the claimed bound.
+    \end{proof}
+
+    \begin{theorem}[Complexity of quadtrees]
+        A quadtree of depth $d$, storing a set of $n$ points, has $\LO((d+1)n)$ nodes and can be constructed in $\LO((d+1)n)$ time. 
+    \end{theorem}
+    \begin{proof} 
+        The number of leaves is $N_L = 3N_I + 1$, where $N_I$ is the number of internal nodes. Since an internal node contains at least two points and nodes represent disjoint regions, the total number of internal nodes is $n$. Since the root node is  at depth zero, the claimed relationship holds. \\
+        The construction time immediately follows by the linear runtime of the subdivision step. 
+    \end{proof}
+
+\section{Neighbor search}
+    Since points in different leaves can still be very close to each other, it is very important to be able to determine the neighbor of a given node in a certain direction. Thus, our algorithm should be able to do the following:
+    \begin{mdframed}
+        Given a quadtree $Q$, a node $v$ and a direction N/E/S/W, find the node $v'$, such that $Q_v.\sigma$ is a neighbor of $Q_{v'}.\sigma$, where $Q_\nu$ is the subtree of $Q$ rooted at $\nu$. 
+    \end{mdframed}
+    Since adjacent cells in a quadtree can be of different sizes, we do not want to go deeper down the tree than the level of the node we are querying the neighbor of. Thus, we search for a node $v'$ such that $Q_v.\sigma$ and $Q_{v'}.\sigma$ are adjacent and on the same level or on levels above if no such node exists. If this also fails, there is no such neighbor.
+
+    \begin{breakablealgorithm}
+        \caption{Neighbor search in northern direction}
+        \label{alg:neighborsearch_north}
+        \begin{algorithmic}[1]
+            \Input{Node $v$ of a quadtree $Q$.}
+            \Output{Node $v'$ of $Q$ such that $Q_{v'}.\sigma$ is the the north neighbor of $Q_v.\sigma$.}
+            \Runtime{$\LO(d+1)$}
+            \Procedure{FindNorthNeighbor}{$v, Q$}
+                \If{$v = Q.\text{root}$}
+                    \State\Return{None}
+                \ElsIf{$v$ = $v$.parent.SW}
+                    \State\Return{$v$.parent.NW}
+                \ElsIf{$v$ = $v$.parent.SE}
+                    \State\Return{$v$.parent.NE}
+                \EndIf
+
+                \State{$\mu \gets \text{FindNorthNeighbor}(v.\text{parent}, Q)$} \Comment{$\LO(d)$}
+                \If{$\mu$ = None $\lor\ \mu.\text{isLeaf}()$}
+                    \State\Return{$\mu$}
+                \ElsIf{$v$ = $v$.parent.NW}
+                    \State\Return{$\mu$.parent.SW}
+                \Else
+                    \State\Return{$\mu$.parent.SE}
+                \EndIf
+            \EndProcedure
+        \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \begin{remark}
+        The algorithm can be easily extended to the other directions by replacing the SW/SE/NW/NE checks by the corresponding directions. 
+    \end{remark}
+

@@ -1,0 +1,85 @@
+\section{Applications}
+    For some applications it is required to store a number of non-zero-dimensional objects, i.e. lines, polygons, polyhedra, etc. in a data structure that allows for efficient queries of their relative position to a point in space that may change over time. The following examples show how this problem arises in the day to day tasks of modern computers:
+    \begin{enumerate}
+        \item \textbf{3D Graphics.} \\
+        \textbf{Problem:} Given a scene with a number of objects, determine which objects are visible from a given viewpoint and render them accordingly. \\
+        \textbf{Naive approach:} Use a frame-/z-buffer to apply the painter's algorithm. This works very well, since we do not need to sort the objects from back to front\footnote{In some cases objects might cyclicly overlap, which requires them to be cut into multiple sub-objects that can be ordered.}, which makes it independent of the scene's complexity and today's GPUs are excellent at doing these tasks. On the other hand, transparent objects still make problems if they are not rendered in the correct order. Thus, sorting is still required. \\   
+        \textbf{Solution:} Compute a partition of the scene into a number of convex subscenes. The subscenes are then rendered in a back-to-front order.
+        
+        \item \textbf{Camera culling.} \\
+        \textbf{Problem:} Given a number of objects (polygons) in a scene, determine which objects are outside of the cameras view and do not render them. \\ 
+        \textbf{Solution:} Check each object's bounding box against the camera's frustum using a space partition and render those visible in appropriate order. 
+    \end{enumerate} 
+
+\section{Data structure}
+    Since our objects are now more complex than points, we need to design a new data structure. This data structure should be able to do the following: \\
+    Partition an $n$-dimensional space in a way that makes it feasible to dynamically order the objects contained in that space back-to-front when viewed from any given direction. \\
+    Again, we fall back on using a binary tree that partitions the space into subspaces that, at their lowest level, each contain at most one object or a fragment of one. The inner nodes store the splitting hyperplane, the objects lying within that hyperplane and possess two children, one for each generated subspace. The leaves partitioning the space now contain the fragments of the objects that lie within the region of the partition they represent. \\
+    Each of the partitioning hyperplanes $h$ is defined by a normal vector $h_n$ and a point $h_p$ on the hyperplane and divide the space into an 'inside' ($+$) and 'outside' ($-$) region defined by
+    $$h^+ := \{q \in \RR^n : \langle q - h_p, h_n \rangle > 0\} \quad\text{and}\quad h^- := \{q \in \RR^n : \langle q - h_p, h_n \rangle < 0\}.$$
+    The hyperplanes are (usually) chosen to be the edges (in 2D, faces in 3D) of the objects within the space.
+
+    \begin{proposition}
+        A binary space partition tree (BSP-tree) with $m$ nodes can, given a view direction $z$, be traversed in $\LO(m)$ time to determine the correct order of the objects within the space.
+    \end{proposition}
+    \begin{proof}
+        The tree can be traversed in a depth-first manner. At each node, the view direction $z$ is compared to the normal vector $n_h$ of the hyperplane $h$. If the view direction is in the same direction as the normal vector, i.e. $\langle n_h, z \rangle > 0$, the 'inside' region is traversed first, then $h$ and finally $h^-$, otherwise the 'outside' region is traversed first, then $h$ and then $h^+$. This is done recursively until the leaves are reached. Since the leaves contain at most one object or fragment, the described traversal yields a back-to-front sorting of the objects.
+    \end{proof}
+
+\section{Construction}
+    As for the previous space partitioning data structures, the size of the BSP-tree depends heavily on the input provided for its construction. This time however, it is the order the subspaces are generated in and not the overall distribution of the objects in space that impact the size of our BSP-tree. \\
+    As the combinatorics in the case of higher dimensional objects is way more complicated than for points, we use the 'laziest' way out, namely using a random order to achieve a good expected runtime. This approach is called \emph{auto-partitioning}.
+
+    \begin{breakablealgorithm}
+        \caption{Construction of a BSP-tree using auto-partitioning}
+        \label{alg:bsp_autopartitioning}
+        \begin{algorithmic}[1]
+            \Input{A set $S = \{s_1, \dots, s_n\}$ of non intersecting line segments in $\RR^2$ in random order.}
+            \Output{The root $v$ of a BSP-tree $T$}
+            \Runtime{$\LO^\ast(n^2\log(n))$}
+            \Procedure{BSP2D}{$S$}
+                \State{$v \gets \text{Node}()$}
+                \If{$\vert S \vert \leq 1$}
+                    \State{$v_S \gets S$}
+                \Else
+                    \State{$h \gets \text{SplitAlong}(s_1)$}
+                    \State{$v_S \gets \{s \in S : s \subset h\}$}
+                    \State{$v_{\text{left}} \gets \text{BSP2D}(\{s \in S : s \cap h^- \neq \emptyset\})$}
+                    \State{$v_{\text{right}} \gets \text{BSP2D}(\{s \in S : s \cap h^+ \neq \emptyset\})$}
+                \EndIf
+                \State\Return{$v$}
+            \EndProcedure
+        \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \begin{remark}
+        This algorithm can be analogously extended to higher dimensions by using the edge-analogue of the objects instead of their actual edges. Nowadays, the 3D version of this algorithm is used in many video games to render the scenes dynamically from the player's point of view.
+    \end{remark}
+
+    \begin{theorem}
+        The algorithm BSP2D runs in $\LO^\ast(n^2\log(n))$ expected time.
+    \end{theorem}
+    \begin{proof}
+        Since the algorithm is non-deterministic we want to calculate the expected runtime. \\
+        Let $s_i$ be a fixed segment in $S$. Then a segment $s_j$ is cut by $s_i$ if and only if there is no other segment $s_k$ between $s_i$ and $s_j$ and $s_i$ is directed at $s_j$. We now want to estimate the probability of this 'shielding' happening. To do this, we define
+        $$d_i(j) := \begin{cases} \vert \{s \in S : \text{Ext}(s_i) \cap s \neq \emptyset \land s \text{ between } s_i \text{ and } s_j \}\vert &\text{if } s_i \cap s_j \neq \emptyset \\ \infty &\text{otherwise} \end{cases} ,$$
+        where $\text{Ext}(s)$ denotes the extension to an infinite line of a segment $s$\footnote{Similarly $\text{Ext}^\ast(s)$ is the maximal extension of $s$, i.e. the line through $s$ stopping at its first intersection with another segment/extension in each direction.}. Now let $k := d_i(j)$ and let $s_{j_i}, \dots, s_{j_k}$ be the intersected segments between $s_i$ and $s_j$. Moreover, for $s_i$ to split $s_j$ it has to be chosen as a splitting segment before $s_j$ and $s_{j_i}, \dots, s_{j_k}$. Thus, $i = \min(i, j, j_1, \dots, j_k)$. Hence
+        $$\mathbb{P}(\text{Ext}^\ast(s_i) \cap s_j \neq \emptyset) \leq \frac{1}{2 + d_i(j)} = \frac{1}{2 + k} ,$$
+        since there might be $s \in S$ such that $\text{Ext}^\ast(s)$ shields $s_j$ from $s_i$. Thus,
+        \begin{align*}
+            \EE[\vert \{s \in S : s_i \text{ causes split of } s\} \vert] &\leq \sum_{j \neq i} \frac{1}{2 + d_i(j)} \\
+            &\leq 2\sum_{k = 0}^{n-2} \frac{1}{2 + k} \\
+            &\leq 2\log(n),
+        \end{align*}
+        since $H_n \leq \gamma + \log(n) + \LO(\frac{1}{n})$, where $H_n$ is the $n$-th harmonic number and $\gamma$ is the Euler-Mascheroni constant. By linearity we thus have
+        $$\EE[\text{Total cuts in BSP2D}] \leq 2n\log(n) ,$$
+        hence executing BSP2D leads to at most $n + 2n\log(n)$ fragments and finishes the construction in $n\LO^\ast(n\log(n)) = \LO^\ast(n^2\log(n))$ expected time.
+    \end{proof} 
+
+    \begin{remark}
+         In practice the number of fragmentations is far below the expected value, making the algorithm much more efficient and thus applicable. Moreover, in production, BSP-trees are computed off-line, i.e. before shipping the product, such that it does not need to be computed by the client itself but only loaded from a file. Additionally, one can first use so-called free splits, i.e. segments that do not cause fragmentation of other objects, to reduce the total size of the BSP-tree\footnote{For example a line segment crossing an entire region of a partition is a free split, since it naturally divides the partition into two smaller subpartitions without fragmenting any segments within the partition itself. Those segments can be identified by initially labeling the endpoints of all segments with 0, and, if they are fragmented by other segments in prior construction steps, labelling the arising split points with 1. Then, if a fragment has endpoints that are both labeled with 1 it can be used as a free split in the next step.}. 
+    \end{remark} \ \\
+
+    \begin{remark}
+        Not using auto-partitioning, i.e. providing the splitting lines as input for the construction of the BSP-tree, allows for an $\LO(n\log(n))$ deterministic algorithm, which is also the theoretical lower bound. In the 3D worst case the space requirements increase to $\LO(n\sqrt{n})$ ($\Omega^\ast(n^2)$ with auto-partitioning) since one can use a scene with two sets of rectangles that are parallel within each set but orthogonal to the other set.
+    \end{remark}

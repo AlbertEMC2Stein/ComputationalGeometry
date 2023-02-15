@@ -1,0 +1,247 @@
+\section{Range Searching}
+    Sometimes, one single point query does not provide us with the full information we need for our task. Thus, it is important to be able to efficiently filter all points we are interested in, without having to query every single point in our data set. This is the task of range searching. 
+
+    \subsection{Applications}
+        To get a better understanding of the problem we are trying to solve, some common applications are provided below: 
+        \begin{enumerate}
+            \item \textbf{Outlier removal.} \\
+            \textbf{Problem:} Given a set of numbers $S$ and their mean value $m$. Find all numbers $x \in S$ that not farther away from $m$ than a given bound $b$. \\
+            \textbf{Solution:} Use a range search to find all numbers $x \in S$ that lie in the 1-dimensional range $[m-b, m+b]$.
+
+            \item \textbf{Location search.} \\ 
+            \textbf{Problem:} Given a map with cities $C_i$ and a designated city $C$, find all cities $C_j$ that are at most 100km away\footnote{With respect to the Manhattan metric, i.e. the metric (cf. definition \ref{def:metric} in chapter \ref{ch:voronoi_diagrams}) $d$ given by $d(x, y) = \sum_{i = 1}^{k} \vert x_i - y_i \vert$ with $x,y \in \RR^k$.} from city $C$. \\
+            \textbf{Solution:} Use a range search to find all cities $C_j$ that lie in the 2-dimensional range $[C_x - 100, C_x + 100] \times [C_y - 100, C_y + 100]$.
+
+            \item \textbf{Database querying.} \\
+            \textbf{Problem:} Given a database $D$ with columns $C_D = \{c_1, c_2, \dots, c_r\}$ and $n >> 1$ entries, find all entries such that the values in columns $(c_i)_{i \in I}$ for some $I \subset \{1, \dots, r\}$ lie in given ranges $([a_i, b_i])_{i \in I}$ with $a_i < b_i$. \\
+            \textbf{Solution:} Use a $r$-dimensional range search to find all entries $e \in D$ such that $e \in \bigtimes_{i \in I} [a_i, b_i]$.
+        \end{enumerate}
+        As we can see, range searching is not neccessarily limited to 1- or 2-dimensional spaces. In fact, it can be generalized to any number of dimensions. Thus, our algorithms should be able to handle any number of dimensions without having to provide a different approach for every single one.
+
+    \subsection{Algorithms}
+        Having said that, it is time to formalize our task before we can start investigating the problem in more detail trying to develop an efficient algorithm. 
+        \begin{mdframed}
+        Given a set $P$ of $n$ points in a $k$-dimensional  space and a $k$-dimensional axis-aligned query range $R$, find all points in $P \cap R$.
+        \end{mdframed}
+
+        \subsubsection{Naive approach}
+            Although we have already mentioned that we do not want to follow this approach, we still state it for completeness' sake. \\
+            For each point $p \in P$, we check if $p \in R$ and report $p$ depending on if it is inside the range or not. This obviously yields a $O(n)$ time complexity for any range, which is inefficient if only $k << n$ points lie in $R$. 
+
+        \subsubsection{Quadtrees}
+            Another approach would be using the quadtrees introduced in the last chapter by constructing a quadtree on top of the set of points and only checking points in grid cells that are intersected by the given query range. Although this may work quite well in some cases, we have already seen that if the points are not evenly distributed, the tree can be very unbalanced leading to many empty cells that need to be checked impacting the runtime of our algorithm. 
+
+\section{kD-trees}
+    To overcome the problems of quadtrees, we can use a different approach to partition the space we are interested in. Instead of partitioning it into four regions each time, we now only create two subspaces enabling us to apply algorithms similar to ones in a binary search tree. This, however, raises the question of how to do this, if multiple dimensions are involved since it is not obvious what these two subspaces should be. 
+
+    \subsection{Construction of a kD-tree}
+        To answer this question, we need to construct a variant of a quadtree that is more robust to unbalanced data and enables us to define a way of partitioning space in a way that is easy to understand and easy to implement independent of the number of dimensions involved. \\
+        As mentioned above, we want to partition the space of interest in a similar way to how a binary search tree partitions an ordered set of objects. But this time, due to the higher dimensionality of our data, we cycle through the different spatial axis with each new level to sort our data. In two dimension this amounts to the following: \\
+        For a node $v_x$ representing the point $p$, the left subtree $v_x.\text{left}$ contains all points $p'$ such that $p'_x \leq p_x$ and the right subtree $v_x.\text{right}$ contains all points $p'$ such that $p'_x > p_x$. Moreover, all subtrees of $v_x$ are of the form $\cdot_y$. For a node $v_y$ representing the point $p$, the left subtree $v_y.\text{left}$ contains all points $p'$ such that $p'_y \leq p_y$ and the right subtree $v_y.\text{right}$ contains all points $p'$ such that $p'_y > p_y$. Moreover, all subtrees of $v_y$ are of the form $\cdot_x$. 
+
+        \begin{breakablealgorithm}
+            \caption{Construction of a kD-tree}
+            \label{alg:kdtree_construction}
+            \begin{algorithmic}[1]
+                \Input{A set of points $P = \{p_1, p_2, \dots, p_n\}$ in a 2D space.}
+                \Output{A kD-tree $T$ storing the points in $P$.}
+                \Runtime{$\LO(n\log(n))$}
+                \Procedure{BuildkDTree}{$P$}
+                    \State{$T \gets \text{BuildkDTreeRec}(P, \text{x})$} \Comment{$\LO(n\log(n))$}
+                    \State{\Return $T$}
+                \EndProcedure
+                \Procedure{BuildkDTreeRec}{$P, \text{axis}$}
+                    \If{$\vert P \vert = 0$}
+                        \State{\Return $\text{Empty}()$}
+                    \EndIf
+                    \State{$P \gets \text{SortByAxis}(P, \text{axis})$} \Comment{$\LO(n\log(n))$}
+                    \State{$v \gets \text{Median}(P, \text{axis})$} \Comment{$\LO(1)$}
+                    \State{$v.\text{left} \gets \text{BuildkDTreeRec}(P[P.\text{axis} \leq v.\text{axis}] \setminus \{v\}, \text{NextAxis}(\text{axis}))$} \Comment{$\LO(\frac{n}{2}\log(\frac{n}{2}))$}
+                    \State{$v.\text{right} \gets \text{BuildkDTreeRec}(P[P.\text{axis} > v.\text{axis}], \text{NextAxis}(\text{axis}))$} \Comment{$\LO(\frac{n}{2}\log(\frac{n}{2}))$}
+                    \State{\Return $v$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+    \begin{remark}
+        Taking the median as splitting point, guarantees that the subtrees and thus the whole tree are balanced.
+    \end{remark}
+
+    \subsection{Searching in a kD-tree}
+        Now that we know how to construct a kD-tree, we want to turn our attention to the task of exploiting its structure to efficiently search our space for points in the desired range. To this end, we consider a kD-tree $T$ with $n$ nodes storing points in $\RR^2$ in its leaves and a query range $R = [a, b] \times [c, d]$. \\
+        Similar to the approach using quadtrees, we start our search at the root node $v$ of $T$. If $v$ lies in $R$, we add it to the result. Then, we consider the subtrees $v.\text{left}$ and $v.\text{right}$ and check if they intersect $R$ and if so, recursively search them until we reach a leaf, whose associated point then gets checked against $R$ and reported accordingly.
+
+        \begin{breakablealgorithm}
+            \caption{Range search in a kD-tree}
+            \label{alg:kdtree_rangesearch}
+            \begin{algorithmic}[1]
+                \Input{A kD-tree $T$ storing points in a 2D space and a query range $R = [a, b] \times [c, d]$.}
+                \Output{A set $P$ of points in $T$ such that $p \in R$.}
+                \Runtime{$\LO(\vert T \cap R \vert + \sqrt{n})$}
+                \Procedure{RangeSearch}{$T, R$}
+                    \State{\Return $\text{RangeSearchRec}(T.\text{root}, R, \text{x})$}
+                \EndProcedure
+                \Procedure{RangeSearchRec}{$v, R, \text{axis}$}
+                    \State{$P \gets \emptyset$}
+                    \If{$v \in R$}
+                        \State{$P \gets P \cup \{v\}$}
+                    \EndIf
+                    \If{$v.\text{isLeaf}()$}
+                        \State{\Return $P$}
+                    \EndIf
+                    \If{$\min(R_\text{axis}) \leq v.\text{axis}$}
+                        \State{$P \gets P \cup \text{RangeSearchRec}(v.\text{left}, R, \text{NextAxis}(\text{axis}))$}
+                    \EndIf
+                    \If{$\max(R_\text{axis}) \geq v.\text{axis}$}
+                        \State{$P \gets P \cup  \text{RangeSearchRec}(v.\text{right}, R, \text{NextAxis}(\text{axis}))$}
+                    \EndIf
+                    \State{\Return $P$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \begin{theorem}
+            Performing a range search in a kD-tree $T$ with $n$ nodes takes $\LO(\vert T \cap R \vert + \sqrt{n})$ time.
+        \end{theorem}
+        \begin{proof}
+            Reporting a subtree $T_v$ needs $\LO(\vert T_v \cap R \vert)$ time. Additionally we need to compute the number of nodes visited in total. For this, consider a single side of the query rectangle. Then, the number of intersected rectangles, hence nodes visited in the algorithm, follows the recurrence 
+            $$Q(n) = \begin{cases} \LO(1) & \text{if } n = 1 \\ 2 + 2Q\!\left( \frac{n}{4} \right) & \text{otherwise} \end{cases} .$$
+            The solution to this recurrence is $Q(n) \in \LO(\sqrt{n})$. Therefore, the total runtime of the algorithm is $\LO(\vert T \cap R \vert + \sqrt{n})$. 
+        \end{proof}
+
+    \subsection{Higher dimensions}
+        In higher dimensions, we construct a $k$-dimensional kD-tree by alternate between the $k$ dimensions similar to the 2D case. Since this amounts to more or less the same procedure, we omit the details here and only state the complexity results.
+
+        \begin{proposition}
+            Consider a $k$-dimensional kD-tree $T$ with $n$ nodes and a query range $R = \bigtimes_{i = 1}^{k} [a_i, b_i]$. Then, the following complexities can be achieved:
+            \begin{itemize}[itemsep=-3pt]
+                \item Construction in $\LO(n\log(n))$.
+                \item Range search in $\LO(\vert T \cap R \vert + n^{1 - \frac{1}{k}})$.
+                \item Memory in $\LO(n)$.
+            \end{itemize}
+        \end{proposition}
+
+\section{Range-trees}
+    Another approach to efficiently perform range searches is to use a so-called range-tree. It behaves similar to a kD-tree, but is constructed in a different way that we now want to explore. 
+
+    \subsection{1D-Range search}
+        For simplicity, we first consider the 1D case and start with a balanced binary search tree (BST) $T$ with $n$ nodes storing numbers in its leaves and a query range $R = [a, b]$. \\
+        In contrast to the kD-tree's range search algorithm where we started our search at the root, we now want to find the node $v_\text{split}$, where the paths to $a$ and $b$ split, first. After this step, we follow the path from $v_\text{split}$ to $a$ and report each right subtree at nodes where our path goes to the left. Vice versa for the path from $v_\text{split}$ to $b$, we report the left subtree at nodes where our path goes to the right. 
+
+        \begin{breakablealgorithm}
+            \caption{1D-Range search in a BST}
+            \label{alg:1d-range-search}
+            \begin{algorithmic}[1]
+                \Input{A balanced BST $T$ storing numbers in its leaves and a query range $R = [a, b]$.}
+                \Output{All numbers $x \in T$ such that $x \in R$.}
+                \Runtime{$\LO(\vert T \cap R \vert + \log(n))$}
+                \Procedure{RangeSearch1D}{$T, a, b$}
+                    \State{$v_\text{split} \gets \text{FindSplitNode}(T, a, b)$} \Comment{$\LO(\log(n))$}
+                    \State{$I \gets \emptyset$}
+                    \If{$v_\text{split}.\text{isLeaf}()$} \Comment{$\LO(1)$}
+                        \If{$v_\text{split}.\text{x} \in R$}
+                            \State{$I \gets I \cup \{v_\text{split}\}$}
+                        \EndIf
+                    \Else
+                        \State{$v \gets v_\text{split}.\text{left}$}
+                        \While{$\neg v.\text{isLeaf}()$} \Comment{$\LO(\vert T \cap R \vert\log(n))$}
+                            \If{$a \leq v.\text{x}$}
+                                \State{$I \gets v.\text{right}.\text{report}()$} \Comment{$\LO(\vert T \cap R \vert)$}
+                                \State{$v \gets v.\text{left}$}
+                            \Else
+                                \State{$v \gets v.\text{right}$}
+                            \EndIf
+                        \EndWhile
+                        \State{$v \gets v_\text{split}.\text{right}$}
+                        \While{$\neg v.\text{isLeaf}()$} \Comment{$\LO(\vert T \cap R \vert\log(n))$}
+                            \If{$b > v.\text{x}$}
+                                \State{$I \gets v.\text{left}.\text{report}()$} \Comment{$\LO(\vert T \cap R \vert)$}
+                                \State{$v \gets v.\text{right}$}
+                            \Else
+                                \State{$v \gets v.\text{left}$}
+                            \EndIf
+                        \EndWhile
+                    \EndIf
+                    \State\Return{$I$}
+                \EndProcedure
+                \Procedure{FindSplitNode}{$T, a, b$}
+                    \State{$v \gets T.\text{root}$}
+                    \While{$\neg v.\text{isLeaf}() \land (b \leq v.\text{x} \lor a > v.\text{x})$}
+                        \If{$b \leq v.\text{x}$}
+                            \State{$v \gets v.\text{left}$}
+                        \Else
+                            \State{$v \gets v.\text{right}$}
+                        \EndIf
+                    \EndWhile
+                    \State\Return{$v$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \begin{remark}
+            Getting the data in the needed format requires preprocessing in $\LO(n\log(n))$. 
+        \end{remark}
+
+    \subsection{2D-Range search}
+        To show how this concept generalizes to higher dimensions, we now want to consider a range-tree in two dimensions. Thus, our task, unsurprisingly, is finding all nodes $x \in T$ such that $x \in R$, given a balanced BST $T$ with $n$ nodes storing points sorted by their $x$-coordinate in its leaves and a query range $R = [a, b] \times [c, d]$. \\
+        The central idea is now to add a pointer for each node $v$ in $T$ that points to an associated BST $T_\text{assoc}(v)$ storing the points contained in subtrees of $v$ sorted by their $y$-coordinate. This is then followed up by performing a 1D-range search on $T$ for the $x$-range $[a, b]$ and subsequently a 1D-range search on $T_\text{assoc}(v)$ for the $y$-range $[c, d]$ for each $v$ reported in the first step and reporting each point found in this second step. \\
+        This nested BST data structure is what we call a \emph{range-tree}. 
+
+        \begin{breakablealgorithm}
+            \caption{2D-Range search using a range-tree}
+            \label{alg:2d-range-search}
+            \begin{algorithmic}[1]
+                \Input{A range tree $T$ storing points in its leaves and a query range $R = [a, b] \times [c, d]$.}
+                \Output{All points $p \in T$ such that $p \in R$.}
+                \Runtime{$\LO(\vert T \cap R \vert + \log(n)^2)$}
+                \Procedure{RangeSearch2D}{$T, a, b, c, d$}
+                    \State{$I \gets \emptyset$}
+                    \State{$v_\text{split} \gets \text{FindSplitNode}(T, a, b)$} \Comment{$\LO(\log(n))$}
+                    \If{$v_\text{split}.\text{isLeaf}()$} \Comment{$\LO(1)$}
+                        \If{$v_\text{split}.p \in R$}
+                            \State{$I \gets I \cup \{v_\text{split}\}$}
+                        \Else
+                            \State{$v \gets v_\text{split}.\text{left}$}
+                            \While{$\neg v.\text{isLeaf}()$} \Comment{$\LO(R_T + \log(n)^2)$}
+                                \If{$a \leq v.\text{x}$}
+                                    \State{$I \gets I \cup \text{RangeSearch1D}(T_\text{assoc}(v.\text{right}), c, d)$} \Comment{$\LO(R_v + \log(n))$}
+                                    \State{$v \gets v.\text{left}$}
+                                \Else
+                                    \State{$v \gets v.\text{right}$}
+                                \EndIf
+                            \EndWhile
+                            \State{$v \gets v_\text{split}.\text{right}$}
+                            \While{$\neg v.\text{isLeaf}()$} \Comment{$\LO(R_T + \log(n)^2)$}
+                                \If{$b > v.\text{x}$}
+                                    \State{$I \gets I \cup \text{RangeSearch1D}(T_\text{assoc}(v.\text{left}), c, d)$} \Comment{$\LO(R_v + \log(n))$}
+                                    \State{$v \gets v.\text{right}$}
+                                \Else
+                                    \State{$v \gets v.\text{left}$}
+                                \EndIf
+                            \EndWhile
+                        \EndIf
+                    \EndIf
+                    \State\Return{$I$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \begin{remark}
+            For brevity we used the notations $R_T := \vert T \cap R \vert$ and $R_v := \vert T_\text{assoc}(v) \cap R \vert$. Moreover, one can see that in contrast to the kD-tree search algorithm, the comparisons for the $x$- and $y$-coordinate are subsequently executed and not in alternating manner
+        \end{remark} \ \\
+
+        \begin{remark} 
+            Given a set of $n$ points in the plane, a range-tree can be constructed in $\LO(n\log(n))$ time using $\LO(n\log(n))$ memory, since each level has $\LO(n)$ nodes and the tree itself has $\LO(\log(n))$ levels. This can be done by precomputing two lists, one sorted by $x$- the other by $y$-coordinate and then building the range tree from the bottom up. 
+        \end{remark}
+
+    \subsection{Higher dimensions}
+        As before, the construction and searching algorithms in higher dimensions proceed analogously to the one in two dimensions, which is why we again omit the details and only state the complexity results.
+
+        \begin{proposition}
+            Consider a $k$-dimensional kD-tree $T$ with $n$ nodes, $k-1$-dimensional associated range-trees and a query range $R = \bigtimes_{i = 1}^{k} [a_i, b_i]$. Then, the following complexities can be achieved:
+            \begin{itemize}[itemsep=-3pt]
+                \item Construction in $\LO(n\log(n)^{k-1})$
+                \item Range search in $\LO(\vert T \cap R \vert + \log(n)^k)$
+                \item Memory in $\LO(n\log(n)^{k-1})$
+            \end{itemize}
+        \end{proposition}

@@ -1,0 +1,81 @@
+\documentclass[a4paper, 12pt]{report}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{colortbl}
+\usepackage{tcolorbox}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage[top=2cm, bottom=2cm, left=2cm,right=2cm]{geometry}
+\usepackage[framemethod=TikZ]{mdframed}
+
+\let\tmp\oddsidemargin
+\let\oddsidemargin\evensidemargin
+\let\evensidemargin\tmp
+\reversemarginpar
+
+\input{settings.tex}
+
+\title{An introduction to computational geometry}
+\author{Tim Prokosch\footnote{Suggestions and corrections are welcome and can be sent to \href{mailto:prokosch@rhrk.uni-kl.de}{prokosch@rhrk.uni-kl.de}}, based on the slides provided by Prof. Dr. Heike Leitte}
+\date{Winter term 2022/23 at the RPTU Kaiserslautern}
+
+\begin{document}
+  \maketitle
+  \tableofcontents
+  \listofalgorithms
+
+  \chapter{Introduction}
+  \input{chapters/introduction}
+
+  \chapter{Convex Hulls}
+  \label{ch:convex_hulls}
+  \input{chapters/convex_hulls}
+
+  \chapter{Line Segment Intersection}
+  \label{ch:line_segment_intersection}
+  \input{chapters/line_segment_intersection}
+
+  \chapter{Map Overlay}
+  \label{ch:map_overlay}
+  \input{chapters/map_overlay}
+
+  \chapter{Polygon Triangulation}
+  \label{ch:polygon_triangulation}
+  \input{chapters/polygon_triangulation}
+
+  \chapter{QuadTrees}
+  \label{ch:quadtrees}
+  \input{chapters/quadtrees}
+
+  \chapter{Range- and kD-Trees}
+  \label{ch:range-_and_kd-trees}
+  \input{chapters/range-_and_kd-trees}
+
+  \chapter{BSPTrees}
+  \label{ch:bsptrees}
+  \input{chapters/bsptrees}
+
+  \chapter{Point Location}
+  \label{ch:point_location}
+  \input{chapters/point_location}
+
+  \chapter{Voronoi Diagrams}
+  \label{ch:voronoi_diagrams}
+  \input{chapters/voronoi_diagrams}
+
+  \chapter{Delaunay Triangulation}
+  \label{ch:delaunay_triangulation}
+  \input{chapters/delaunay_triangulation}
+
+  \chapter{Recap}
+  \input{chapters/recap}
+\end{document}
+

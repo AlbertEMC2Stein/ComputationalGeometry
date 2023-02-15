@@ -1,0 +1,269 @@
+\section{Definitions}
+    Since this chapter introduces some new mathematical concepts, we will first some definitions to properly understand them. 
+
+    \begin{definition}[Metric]
+        \label{def:metric}
+        A \emph{metric} on a set $X$ is a function $d: X \times X \rightarrow \RR$ satisfying the following properties:
+        \begin{enumerate}
+        \item $d(x, y) \geq 0$ for all $x, y \in X$,
+        \item $d(x, y) = 0$ if and only if $x = y$,   
+        \item $d(x, y) = d(y, x)$ for all $x, y \in X$, and
+        \item $d(x, y) \leq d(x, z) + d(z, y)$ for all $x, y, z \in X$.
+        \end{enumerate}
+    \end{definition}
+
+    In this lecture we will only consider the metric $d$ induced by the Euclidean norm on $\RR^2$, i.e.
+    $$d(x, y) = \Vert x - y \Vert_2 = \sqrt{(x_1 - y_1)^2 + (x_2 - y_2)^2}.$$
+    As we will see later, this will give us the opportunity to derive explicit expressions for some geometric objects required for developing our algorithms. For general, more complex, metrics, one would have to resort to more advanced mathematical tools or even numerical techniques, since the implicit equations involved in our derivation are not analytically solvable with means available to us, if at all possible. 
+
+    \begin{definition}[Voronoi diagram] 
+        Let $P = \{p_1, \dots, p_n\}$ be a finite set of $n$ points in $\RR^2$ and $d$ a metric. A tesselation of the plane in $n$ Voronoi cells $V(p_i)$ with
+        $$V(p_i) := \{x \in \RR^2 \mid d(x, p_i) < d(x, p_j) \text{ for all } j \neq i\}$$
+        is called the \emph{Voronoi diagram} $\text{Vor}_d(P)$ of $P$ with respect to $d$. The vertices and edges in this diagram are called Voronoi vertices, respectively, Voronoi edges. The faces are called Voronoi cells. 
+    \end{definition}
+
+    \begin{definition}[Bisector] 
+        The \emph{bisector} $m_{ij}$ of two points $p_i$ and $p_j$ is the set
+        $$m_{ij} := \{x \in \RR^2 \mid d(x, p_i) = d(x, p_j)\}.$$
+    \end{definition}
+
+    \begin{remark}
+        In the case of the Euclidean norm the $m_{ij}$ are straight lines. 
+    \end{remark}
+    
+\section{Applications}
+    As with every new problem, we want to motivate its relevance by listing some applications.
+    \begin{enumerate}
+        \item \textbf{Closest hospital.} \\
+        \textbf{Problem:} Given a map with locations of $n$ hospitals $H := \{h_1, \dots, h_n\}$, find the closest hospital for any point on the map. \\
+        \textbf{Solution:} Compute the Voronoi diagram $\text{Vor}_d(H)$ and for each point $p$ on the map find the Voronoi cell $V(h_i)$ containing $p$. The $d$-closest hospital to $p$ then is the corresponding $h_i$. 
+
+        \item \textbf{Aerospace emergency system.} \\
+        \textbf{Problem:} Given a map with locations of $n$ airports $A := \{a_1, \dots, a_n\}$ and a set of planes $P$, find, in case of a widespread emergency, the $d$-closest airport for each plane in $P$. \\
+        \textbf{Solution:} Compute the Voronoi diagram $\text{Vor}_d(A)$ and for each plane $p$ find the Voronoi cell $V(a_i)$ containing $p$. The closest airport to $p$ then is the corresponding $a_i$. 
+    \end{enumerate}
+
+\section{Analysis}
+    Now that we have introduced the basic concepts, we can start to analyze the Voronoi diagram in some more detail. We will start with some basic properties and then move on to more advanced results in the upcoming sections. \\
+
+    \begin{remark} 
+        Because the bisectors $m_{ij}$ for the euclidean norm are straight lines, the Voronoi cells are intersections of open half-spaces $H_{ij}$, i.e.
+        $$V(p_i) = \bigcap_{j \neq i} H_{ij} \quad\text{with}\quad H_{ij} := \{x \in \RR^2 : d(x, p_i) < d(x, p_j)\} .$$ 
+    \end{remark}
+
+    \begin{proposition} 
+        Let $P$ be a set of $n \geq 3$ distinct points. If all points lie on a line $g$ then all bisectors are parallel and infinite lines orthogonal to $g$. Otherwise, the edges in $\text{Vor}(P)$ form a connected graph with each edge being a segment or half-line. 
+    \end{proposition}
+    \begin{proof} 
+        First, we note that each $V(p_i)$ must be convex since it is the intersection of a number of convex half-spaces. Since the case where all points lie on a line is trivial, we assume that there exist $p_i, p_j$ and $p_k$ that do not lie on a common line. Because all edges in $\text{Vor}(P)$ are pieces of bisectors, they can only be line segments, half-lines or full lines\footnote{To make this a proper graph, introduce a dummy vertex $v_\infty$ connecting to all infinite lines.}. On the other hand, the bisectors $m_{ij}$ and $m_{ik}$ must intersect, implying that they cannot completely correspond to edges in $\text{Vor}(P)$. Therefore, full lines are not possible. \\
+        For the second statement we may assume that $\text{Vor}(P)$ is not connected. Then there must be a cell $V(p_i)$ separating two components. Consequently, this cell must be bounded by two parallel lines due to convexity of $V(p_i)$. This contradicts the statement shown prior implying that $\text{Vor}(P)$ must be connected.
+    \end{proof}
+
+    \begin{lemma}
+        A planar Voronoi diagram of $n \geq 3$ points has at most $n_v = 2n - 5$ vertices and $n_e = 3n - 6$ edges. 
+    \end{lemma}
+    \begin{proof} 
+        In the case where all points in $P$ lie on a common line $g$, we already know that $\text{Vor}(P)$ consists out of $n-1$ parallel lines. Connecting those to $v_\infty$ results in a graph with $n-1$ looping edges from $v_\infty$ to $v_\infty$. In the other case we obtain a connected, planar embedded graph by the previous proposition. Using  Euler's formula $\vert V \vert - \vert E \vert + \vert F \vert = 2$, we see that
+        $$2 = (n_v + 1) - n_e + n$$
+        because $n_f = n$ and introducing $v_\infty$ adds one vertex. Because every edge contributes to two vertices and each vertex has at least three edges, we get $3(n_v + 1) \leq 2n_e$ and in particular
+        \begin{alignat*}{2}
+            &6 = 3(n_v + 1) - 3n_e + 3n \leq -n_e + 3n &&\iff n_e \leq 3n - 6 \text{ and} \\
+            &4 = 2(n_v + 1) - 2n_e + 2n \leq -(n_v + 1) + 2n &&\iff n_v \leq 2n - 5.
+        \end{alignat*} 
+        This proves the proposition. 
+    \end{proof}
+
+\section{Algorithms}
+    As before, we will start by specifying the problem our algorithm should be able to solve:
+    \begin{mdframed}
+        Given a set of $n$ points $P = \{p_1, \dots, p_n\}$ in $\RR^2$, compute the Voronoi diagram $\text{Vor}_d(P)$ of $P$ with respect to the Euclidean metric $d$. 
+    \end{mdframed}
+
+    \subsection{Naive Voronoi}
+        Using the remark above, one might come up with the following algorithm:
+
+        \begin{breakablealgorithm}
+            \caption{Naive Voronoi}
+            \label{alg:naive_voronoi}
+            \begin{algorithmic}[1]
+                \Input{Set of $n$ distinct points $P = \{p_1, \dots, p_n\}.$}
+                \Output{Voronoi diagram $\text{Vor}_d(P).$}
+                \Runtime{$\LO(n^2\log(n))$}
+                \Procedure{NaiveVoronoi}{$P$}
+                    \State $V \gets \emptyset$
+                    \For{$i \gets 1, \dots, n$} \Comment{$\LO(n^2\log(n))$}
+                        \State{$V_p \gets \RR^2$}
+                        \For{$j \gets 1, \dots, n$} \Comment{$\LO(n\log(n)$)}
+                            \If{$i \neq j$}
+                                \State{$V_p \gets V_p \cap H_{ij}$}
+                            \EndIf
+                        \EndFor
+                        \State{$V.\text{insert}(V_p)$}
+                    \EndFor
+                    \State\Return{$V$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        As can be easily seen, the runtime of this algorithm is $\LO(n^2\log(n))$ although $\text{Vor}(P)$ only needs $\LO(n)$ memory. This raises the question for the existence of a more efficient algorithm. 
+
+    \subsection{Fortune's algorithm}
+        We start this section with the following observation:
+        \begin{proposition}
+            A point $p$ in the plane is a Voronoi vertex if and only if the largest empty circle $c_P(p)$, i.e. the largest circle containing no points in its  besides $p$ with $p$ being its midpoint, contains at least three points of $P$ on its boundary. Moreover, a bisector $m_{ij}$ defines a Voronoi edge if and only if there is a point $p \in m_{ij}$, whose largest empty circle $c_P(p)$ contains exactly two points on its boundary. 
+        \end{proposition}
+        \begin{proof}
+            For both statements we show both implications. 
+            \begin{itemize}
+                \item[] '$\Leftarrow$': Let $p$ be a point with empty circle $c_P(p)$ through points $q_i, q_j$ and $q_k$. Then, at least the three cells $V(q_i), V(q_j)$ and $V(q_k)$ meet in $p$ since they have the same distance from it, thus $p$ must be a voronoi vertex. 
+                
+                \item[] '$\Rightarrow$': Conversely, if $p$ is a Voronoi vertex, then there are at least three cells containing $p$ on their boundary. Thus, there must be at least three points $q_i, q_j$ and $q_k$ on the boundary of $c_P(p)$.
+            \end{itemize}
+            For the second statement we get the following.
+            \begin{itemize}
+                \item[] '$\Leftarrow$': Let $p$ be a point with empty circle $c_P(p)$ through two points $q_i$ and $q_j$. Then $p$ belongs to the edge shared between $V(q_i)$ and $V(q_j)$. By the previous statement $p$ cannot be a Voronoi vertex and thus has to be a Voronoi edge.
+                \item[] '$\Rightarrow$': Finally let $m_{ij}$ contain an edge $e \in \text{Vor}(P)$. Then for every point $p \in e$, the largest empty circle $c_P(p)$ contains only the points $q_i$ and $q_j$ defining the adjacent cells on its boundary.
+            \end{itemize}
+            This shows both statements.
+        \end{proof}
+        
+        Using this characterization, we will employ a sweep line $\ell$ scanning the points in $P$ from top to bottom. This sweep line should inhibit the property that points below it can still change the Voronoi diagram in a region below a curve $\beta$ above $\ell$. We will call this curve the beach-line. Since the beach-line separates the region that can still change from the one that is already computed correctly\footnote{The beach-line should be defined in a way such that the Voronoi vertices and edges arise in a natural way.}, we will maintain it in a status queue. \\
+        To implement this algorithm we still need to derive a representation of the curve $\beta$. To do this, we note that for the mentioned regions to be separated, the points on $\beta$ must satisfy
+        $$\beta(x) - \ell_y = \min_{p \in P}\Vert p - (x, \beta(x))^T \Vert_2 ,$$
+        i.e. the beach-line consists of all points that have the same distance to the sweep line as to the closest point $p \in P$ above $\ell$. Solving this equation\footnote{This is the point where the choice of the Euclidean metric is crucial for us.} yields
+        $$\beta(x) = \min_{p \in P} \frac{x^2 - 2p_xx + p_x^2 + p_y^2 - \ell_y}{2(p_y - \ell_y)} .$$
+        Thus $\beta$ is a piecewise quadratic curve, i.e. the beach-line $\beta$ consists out of multiple parabolic arcs $\beta_i$. \\
+        Now that we know how to separate those regions, we need to figure out how the structure of the Voronoi diagram arises above $\beta$. Again, we use the fact that the Voronoi diagram, at least in our case of using the Euclidean metric, consists only out of half-lines and line segments. Hence, we only need to track the arising vertices and their connections as the sweep line and thus the beach-line traverses the plane. To do so, we will introduce two events; a site event and a circle event. A site, respectively, circle event occurs when a new arc appears, respectively, disappears in the beach-line. 
+
+        \begin{lemma} 
+            Only a site event can contribute to a new arc in the beach-line. 
+        \end{lemma}
+        \begin{proof} 
+            Assume the contrary. Then, an arc could appear by another parabola breaking through the beach-line from above. This could happen in two ways:
+            \begin{enumerate}
+                \item Assume an arc $\beta_j$ breaks through the middle of another arc $\beta_i$ from above. Then there is a point in time $t_0$ where $\ell_y < p^{(i)}_y$, $\ell_y < p^{(j)}_y$ and $\beta_i$ and $\beta_j$ touch in a single point $q$, where $p^{(i)}$ and $p^{(j)}$ are the points defining the arcs $\beta_i$ and $\beta_j$. Thus, before $t_0$ the arcs $\beta_i$ and $\beta_j$ cannot intersect in any point. Now consider the leading coefficients of both arcs
+                $$c(\beta_i) = \frac{1}{2(p^{(i)}_y - \ell_y)} \quad\text{and}\quad c(\beta_j) = \frac{1}{2(p^{(j)}_y - \ell_y)} .$$
+                We observe that the arcs get wider, the lower the sweep line moves below the point they were created at. Since $\beta_j$ breaks through $\beta_i$, $p^{(j)}$ must have been passed by $\ell$ before $p^{(i)}$. Thus, at time $t_0$, we must have $c(\beta_i) \geq c(\beta_j)$, implying that $\beta_j$ is wider than $\beta_i$. This contradicts the fact that they have not intersected before time $t_0$.
+                
+                \item Now assume that an arc $\beta_j$ appears at the transition point $q$ of two arcs $\beta_i$ and $\beta_k$. Then there is a circle $C$ through $p^{(i)}, p^{(j)}$ and $p^{(k)}$, where $p^{(\cdot)}$ is defined as above, which touches the sweep line at a certain time $t_0$. After $t_0$ the circle $C$, still tangential to $\ell$ and passing through $p^{(j)}$ and one of the other points, must have either swallowed $p^{(i)}$ or $p^{(k)}$, i.e. this point now lies in the interior of $C$. We may assume the swallowed point is $p^{(k)}$. Since $p^{(k)}$ is inside of $C$ it must be closer to $q$ than $p^{(j)}$. Thus, by the properties of the beach-line $\beta_j$ cannot contribute to the beach-line immediately after $t_0$, which is a contradiction to it passing the other arcs after $t_0$.
+            \end{enumerate}
+            Since neither case can occur, the statement must follow.
+        \end{proof}
+        
+        \begin{remark}
+            It is easy to see that beach-line consists of at most $2n - 1$ parabolic arcs, since every site event adds one more arc that can split arcs that are already part of the beach line into two new arcs. 
+        \end{remark}
+
+        \begin{lemma} 
+            An arc can only disappear from the beach-line at a circle event. 
+        \end{lemma}
+        \begin{proof} 
+            The only other way of an arc disappearing is if it gets overtaken by another arc from above. This cannot happen as we already have shown. 
+        \end{proof}
+
+        \begin{lemma} 
+            All Voronoi vertices can be detected by the circle events. 
+        \end{lemma}
+        \begin{proof}
+            We have to show that the points $p_i, p_j$ and $p_k$ of adjacent Voronoi cells have generated adjacent arcs before the corresponding circle event would have to be processed. Lifting the sweep line by $\varepsilon > 0$ gives two empty circles tangential to $\ell$ interpolating $p_i$ and $p_j$ and $p_j$ and $p_k$ respectively. Thus, prior to the to be processed circle event the arcs $\beta_i$ and $\beta_j$ and also $\beta_j$ and $\beta_k$ were adjacent, hence they created the circle event before it needed to be handled.
+        \end{proof}
+
+        The above lemmas show that the circle events can be calculated during the sweeping process. Thus, our algorithm only needs the site events, i.e. the set of points $P$, as input. Moreover, it can happen that a site event prevents a previously identified circle event which then again must be removed from the event queue. \\
+        Before continuing, we want to summarize the results we have obtained so far in an instructive manner. To implement the algorithm as motivated by the results above we need:
+        \begin{enumerate}
+            \item A priority queue $Q$ for site and circle events, where the priority is the $y$-coordinate of the eventpoint. This queue will be initialized with the site events induced by $P$.
+            \item A self-balancing search tree $T$ representing the structure of the beach-line $\beta$. This allows querying for arcs involved int the current event in $\LO(n\log(n))$ time. \\ 
+            The leaves $\gamma$ of $T$ will represent the different arcs of the beach line from left to right and contain a pointer to the point the arc was generated from, a pointer to a circle event removing the arc if one exists and pointers to the left and right arc in the beach-line. The inner nodes $[p_i, p_j]$ on the other hand, represent the transition points $q_{ij}$ between arcs $\beta_i$ and $\beta_j$ and contain pointers to the arc-generating points $p_i$ and $p_j$ and a pointer to the corresponding Voronoi edge in $D$. 
+            \item A DCEL $D$ representing the Voronoi diagram. Again, to avoid half-lines we embed $P$ in a sufficiently large bounding box $R$.
+        \end{enumerate}
+
+        With this setup we can now describe the algorithm originally published by Steven Fortune in 1986 in detail:
+
+        \begin{breakablealgorithm}
+            \caption{Fortune's algorithm}
+            \label{alg:fortune_voronoi}
+            \begin{algorithmic}[1]
+                \Input{A set $P = \{p_1, \dots, p_n\}$ of $n$ distinct points in the plane.}
+                \Output{The voronoi diagram $\text{Vor}(P)$ of $P$ as a DCEL with a bounding box $R$.}
+                \Runtime{$\LO(n\log(n))$}
+                \Procedure{VoronoiDiagram}{$P$}
+                    \State{$R \gets \text{ComputeBoundingBox}(P)$}
+                    \State{$Q \gets \text{InitializeEventQueue}(P)$} \Comment{$\LO(n\log(n))$}
+                    \State{$T \gets \emptyset$}
+                    \State{$D \gets \emptyset$}
+                    \While{$Q \neq \emptyset$} \Comment{$\LO(n\log(n)) = \LO((n + 2n-5)\log(n))$}
+                        \State{$e \gets Q.\text{pop}()$}
+                        \If{$e.\text{type} = \text{SITE}$}
+                            \State{HandleSiteEvent($e.\text{p}, T, D$)} \Comment{$\LO(\log(n))$}
+                        \Else
+                            \State{HandleCircleEvent($e.\text{involved}, e.\text{midpoint}, T, D$)} \Comment{$\LO(\log(n))$}
+                        \EndIf
+                    \EndWhile
+                    \State{$H \gets T.\text{getHalfLines}()$}
+                    \State{$D.\text{addBoundingBox}(H, R)$}
+                    \State\Return{$D$}
+                \EndProcedure
+                \Procedure{HandleSiteEvent}{$p, T, D$}
+                    \If{$T.\text{isEmpty}()$}
+                        \State{$T.\text{insert}(p)$}
+                    \Else
+                        \State{$\gamma \gets T.\text{findArcNodeAbove}(p)$}
+                        \If{$\gamma.\text{hasCircleEvent}()$}
+                            \State{$Q.\text{remove}(\gamma.\text{circleEvent})$}
+                        \EndIf
+                        \State{$T.\text{replace}(\gamma, (\gamma.\text{p}, p, \gamma.\text{p}), ([\gamma.\text{p}, p], [p, \gamma.\text{p}]))$}
+                        \State{$D.\text{addEdge}(D.\text{getCell}(p), D.\text{getCell}(\gamma.\text{p}))$}
+                        \If{$\text{CreateCircleEvent}(\gamma.\text{arc}, \gamma.\text{arc.right}, \gamma.\text{arc.right.right})$}
+                            \State{$e \gets \text{NewCircleEvent}(\gamma.\text{arc}, \gamma.\text{arc.right}, \gamma.\text{arc.right.right})$}
+                            \State{$Q.\text{insert}(e)$}
+                            \State{$T.\text{updatePointers}(\gamma.\text{arc}, \gamma.\text{arc.right}, \gamma.\text{arc.right.right}, e)$}
+                        \EndIf
+                        \If{$\text{CreateCircleEvent}(\gamma.\text{arc}, \gamma.\text{arc.left}, \gamma.\text{arc.left.left})$}
+                            \State{$e \gets \text{NewCircleEvent}(\gamma.\text{arc}, \gamma.\text{arc.left}, \gamma.\text{arc.left.left})$}
+                            \State{$Q.\text{insert}(e)$}
+                            \State{$T.\text{updatePointers}(\gamma.\text{arc}, \gamma.\text{arc.left}, \gamma.\text{arc.left.left}, e)$}
+                        \EndIf
+                    \EndIf
+                \EndProcedure
+                \Procedure{HandleCircleEvent}{$\beta, p, T, D$}
+                    \State{$\beta_L, \beta_M, \beta_R \gets \beta$}
+                    \For{$e \in Q$}
+                        \If{$e.\text{type} = \text{CIRCLE} \land \beta_M \in e.\text{involved}$}
+                            \State{$Q.\text{remove}(e)$}
+                        \EndIf
+                    \EndFor
+                    \State{$T.\text{remove}(\beta_M)$}
+                    \State{$T.\text{updateInnerNodes}()$}
+                    \State{$D.\text{addVertex}(p)$}
+                    \State{$D.\text{addEdge}(D.\text{getCell}(\beta_L.\text{p}), D.\text{getCell}(\beta_R.\text{p}))$}
+                    \For{$i = 0, \dots, \vert T.\text{leaves} \vert$}
+                        \State{$\gamma \gets T.\text{leaves}[i]$}
+                        \If{$\text{CreateCircleEvent}(\gamma.\text{arc.left}. \gamma.\text{arc}, \gamma.\text{arc.right})$}
+                            \State{$e \gets \text{NewCircleEvent}(\gamma.\text{arc.left}. \gamma.\text{arc}, \gamma.\text{arc.right})$}
+                            \State{$Q.\text{insert}(e)$}
+                            \State{$T.\text{updatePointers}(\gamma.\text{arc.left}. \gamma.\text{arc}, \gamma.\text{arc.right}, e)$}
+                        \EndIf
+                    \EndFor
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \begin{remark} 
+            In CreateCircleEvent, one must check if the transition points move towards each other. Since this is a simple line intersection check, the $y$-coordiante of these converging edges can be computed efficiently. 
+        \end{remark}
+
+        \begin{theorem}
+            The algorithm proposed by Fortune runs in $\LO(n\log(n))$ time and uses $\LO(n)$ memory.
+        \end{theorem}
+        \begin{proof} 
+            Since the operations on $Q$, $T$ and $D$ take only $\LO(\log(n))$ time, any event can be processed in $\LO(\log(n))$ time. Moreover, since the total number of arcs is bounded by $2n - 1$, the memory requirements for $T$ and $Q$ are in $\LO(n)$. 
+        \end{proof}
+
+        Before ending this chapter, we will list some edge cases that still need to be considered: 
+        \begin{itemize}[itemsep=-3pt]
+            \item If two points have the same $y$-coordinate, any sequence of processing them is admissible. If those happen to be the first two points in $P$, then there will be no arc above the second point. 
+            
+            \item If four or more points lie on one circle, then two or more circle events coincide. This can be handled by adding an edge of length zero to $D$ which can be removed in a post-processing step.
+            
+            \item If a site event occurs at the transition of two arcs, one of the neighbors is split to yield an arc of length zero. This arc then will generate a circle event removing that arc as soon as its being processed.
+        \end{itemize}

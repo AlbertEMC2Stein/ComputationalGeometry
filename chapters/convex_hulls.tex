@@ -1,0 +1,160 @@
+\section{Definitions}
+    To better understand the problem at hand, we first need to define some basic concepts.
+
+    \begin{definition}[Convex sets] 
+        A set $S \subseteq \mathbb{R}^n$ is called a \emph{convex set} if for any two points $x, y \in S$ the line segment $\overline{xy}$ is fully contained in $S$. 
+    \end{definition}
+
+    Thus, convex sets are more or less shapes with no dents, i.e. shapes where no vertex creates an inward pointing corner. Since there are infinitely many convex sets, we need to define a notion of convexity that is more useful in practice.
+
+    \begin{definition}[Convex hull]
+        The \emph{convex hull} $\mathrm{conv}(S)$ of a set $S \subseteq \mathbb{R}^n$ is the smallest convex set containing $S$, i.e.
+        $$\mathrm{conv}(S) := \bigcap_{S \subseteq C \text{ convex}} C .$$
+    \end{definition}
+
+\section{Applications}
+    Since the convex hull is a fundamental geometric object, it has many applications in computer science, physics, and mathematics. Here are some examples:
+    \begin{enumerate}
+        \item \textbf{Robot motion planning.} \\ 
+        \textbf{Problem:} Given two points $s, t \in \RR^2$ and a polygon $P$, such that $s, t \notin P$ find a shortest path from $s$ to $t$ that does not intersect $P$. \\
+        \textbf{Solution:} Calculate a shortest path from $s$ to $t$ along $\partial\mathrm{conv}(P \cup \{s, t\})$, since this is also a shortest path from $s$ to $t$ in $\overline{P^\complement}$. 
+
+        \item \textbf{Farthest pair problem.} \\
+        \textbf{Problem:} Given a polygon $P$, find two points $p$ and $q$ in $P$ that maximize $\Vert p - q \Vert_2$. \\
+        \textbf{Solution:} Compute the convex hull of $P$ and return the pair of vertices with largest distance from each other. 
+    \end{enumerate} 
+    To be able to solve these problems, we now want to take a look at different algorithms for computing the convex hull.
+
+\section{Algorithms}
+    Since we want to compare the different algorithms, we will use the following specifications:
+    \begin{mdframed}
+        Given a finite set $S \subseteq \RR^2$ consisting of $n$ points, return those contained in $\partial \mathrm{conv}(S)$ in clockwise order. 
+    \end{mdframed}
+
+    \subsection{Naive approach}
+        The first idea that comes to mind is based on the following fact: \\ 
+        A line segment is part of the boundary of the convex hull if and only if there are no points on either the left or the right of it. Moreover, if we traverse the boundary of the convex hull in clockwise direction, then all other points lie to our right at any given moment. \\
+        This now motivates our first algorithm.
+
+        \begin{breakablealgorithm}
+            \caption{Naive convex hull}
+            \label{alg:convex_hull_naive}
+            \begin{algorithmic}[1]
+                \Input{A finite set $S \subseteq \RR^2$ consisting of $n$ points}
+                \Output{Points of $S$ contained in $\partial\mathrm{conv}(S)$ in clockwise order}
+                \Runtime{$\LO(n^3)$} 
+                \Procedure{ConvexHull}{$S$}
+                    \State{$H \gets \emptyset$}
+                    \For{$p \in S$} \Comment{$\LO(n^3)$}
+                        \For{$q \in S \setminus \{p\}$} \Comment{$\LO(n^2)$}
+                            \State $\text{valid} \gets \text{True}$
+                            \For{$r \in S \setminus \{p, q\}$} \Comment{$\LO(n)$}
+                                \State{$\text{valid} \gets \text{IsRightTurn}(p,q,r)$}
+                            \EndFor
+                            \If{$\text{valid}$}
+                                \State{$H \gets H \cup \{\overline{pq}\}$}
+                            \EndIf
+                    \EndFor\EndFor
+                    \State\Return{\text{InCyclicOrder($H$)}} \Comment{$\LO(n\log(n))$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm} 
+
+        As we can easily see, this algorithm has a cubic runtime, i.e. doubling the input size increases the runtime by a factor of eight. This is not very good, but we can do better. 
+
+    \subsection{Graham's scan (Lecture version)}
+        Instead of testing all segments for their containment in the boundary of the convex hull, we could go about this problem in another way. Since the points of $S$ contained in the boundary convex hull are more or less the 'extreme' points in $S$, we could first split $S$ in an upper and lower half and compute their respective convex hulls by looking for the uppermost, respectively lowermost vertices in both halves and connect them appropriately. Then stitch both halves together to obtain the convex hull of $S$. This idea is due to Ronald Graham, who published the original algorithm in 1972.
+
+        \begin{breakablealgorithm}
+            \caption{Graham's scan}
+            \label{alg:convex_hull_graham}
+            \begin{algorithmic}[1]
+                \Input{A finite set $S \subseteq \RR^2$ consisting of $n$ points}
+                \Output{Points of $S$ contained in the convex hull $\mathrm{conv}(S)$ in clockwise order}
+                \Runtime{$\LO(n\log(n))$}
+                \Procedure{ConvexHull}{$S$}
+                    \State{$S \gets \text{LexicographicSort}(S)$} \Comment{$\LO(n\log(n))$}
+                    \State{$H_+ \gets S[0, 1]$}
+                    \For{$i = 2, \dots, n-1$} \Comment{$\LO(n)$ (max. 2 $H_+$-OPs per point)}
+                        \State{$H_+ \gets H_+ \cup \{S[i]\}$}
+                        \While{$\vert H_+ \vert > 2 \land \text{IsLeftTurn}(H_+[-3], H_+[-2], H_+[-1])$} 
+                            \State{$H_+ \gets H_+ \setminus H[-2]$}
+                        \EndWhile
+                    \EndFor
+                    \State{$H_- \gets S[-1, -2]$}
+                    \For{$i = 3, \dots, n$} \Comment{$\LO(n)$ (max. 2 $H_-$-OPs per point)}
+                        \State{$H_- \gets H_- \cup \{S[-i]\}$}
+                        \While{$\vert H_- \vert > 2 \land \text{IsLeftTurn}(H_-[-3], H_-[-2], H_-[-1])$}
+                            \State{$H_- \gets H_- \setminus H[-2]$}
+                        \EndWhile
+                    \EndFor
+                    \State{$H_- \gets H_- \setminus \{H_-[0], H_-[-1]\}$}
+                    \State\Return{$H_+ \cup H_-$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm} 
+
+        One should note that there are edge cases which are not yet considered in this algorithm. For example, if three points lie on a line, the algorithm will not remove the middle of the three, which might be undesirable. A remedy for this is to swap the isLeftTurn function with $\neg$isRightTurn. 
+
+    \subsection{Jarvis' march}
+        Another approach is due to R. A. Jarvis, who published it in 1973. This algorithm is widely known as the gift wrapping method. It starts with the lowest leftmost point $p_0$ and walks around the convex hull in clockwise direction adding the extreme points to the calculated set until it coincides with the convex hull.
+
+        \begin{breakablealgorithm}
+            \caption{Jarvis' march}
+            \label{alg:convex_hull_jarvis}
+            \begin{algorithmic}[1]
+                \Input{A finite set $S \subseteq \RR^2$ consisting of $n$ points}
+                \Output{Points of $S$ contained in the convex hull $\mathrm{conv}(S)$ in clockwise order}
+                \Runtime{$\LO(nh)$}
+                \Procedure{ConvexHull}{$S$}
+                    \State{$p_1 \gets \text{LowestLeftmost}(S)$} \Comment{$\LO(n)$}
+                    \State{$H \gets \{(p_1^{(x)}, p_1^{(y)} - 1), p_1\}$}
+                    \State{$q \gets p_0$}
+                    \While{$q \neq p_1$} \Comment{$\LO(nh)$}
+                        \State{$q = \argmin_{\substack{p \in S \\ p \text{ right of } H}} \sphericalangle(\overline{H[-2]H[-1]}, \overline{H[-1]p})$} \Comment{$\LO(n)$}
+                        \State{$H \gets H \cup \{q\}$}
+                    \EndWhile
+                    \State\Return{$H[1, \dots, \text{end}]$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        A simple analysis shows that the convex hull is computed in $\LO(nh)$ time, where $h$ is the number of points in the convex hull. Thus, the runtime of Jarvis' march is dependent on its output. Such algorithms are called \emph{output-size sensitive}.
+
+    \subsection{Further algorithms}
+        Since the publication of Graham's scan and Jarvis' march, many other algorithms have been proposed. The following list is not exhaustive, but gives an overview of the most important ones:
+        \begin{enumerate}
+            \item \textbf{Divide-and-conquer (Preparata \& Hong, 1977).} \\
+            \textbf{Idea:} Split $S$ into two subsets $S_1$ and $S_2$ and recursively compute the convex hulls of $S_1$ and $S_2$. Then, compute the convex hull of the union of $S_1$ and $S_2$ by merging the two convex hulls. \\
+            \textbf{Runtime:} $\LO(n\log(n))$.
+
+            \item \textbf{QuickHull (Eddy 1977, Bykett 1978).} \\
+            \textbf{Idea:} Discard non-hull points as quickly as possible. \\
+            \textbf{Runtime:} $\LO(n\log(n))$ in favorable case, $\LO(n^2)$ in worst case.
+
+            \item \textbf{Kirkpatrick-Seidel algoithm (1986).} \\
+            \textbf{Runtime:} Optimal output-sensitive runtime of $\LO(n\log(n))$. \\
+            \textbf{Drawback:} Very complex.
+
+            \item \textbf{Chan's algorithm (1989).} \\
+            \textbf{Idea:} Combination of Graham's scan and Jarvis' march. 
+        \end{enumerate}
+
+\section{Variations on the convex hull problem}
+    Besides the standard convex hull problem, there are several variations on it which are worth mentioning but not of further relevance for the lecture.
+    \begin{enumerate}
+        \item \textbf{Online convex hull algorithms.} \\
+        \textbf{Problem:} Input points are obtained sequentially. \\
+        \textbf{Observation:} Convex hull increases by at most one point each time. \\
+        \textbf{Optimal runtime:} $\LO(\log(n))$.
+        
+        \item \textbf{Dynamic convex hull algorithms.} \\
+        \textbf{Problem:} Points can be sequentially inserted or deleted. \\
+        \textbf{Observation:} Removing a point can increase the convex hull's size drastically. \\
+        \textbf{Optimal runtime:} $\LO(\log^2(n))$.
+        
+        \item \textbf{kD convex hull algorithms.} \\
+        \textbf{Problem:} Input points are in $\RR^k$. \\
+        \textbf{Observation:} Convex hull is a polytope. \\
+        \textbf{Optimal runtime:} $\LO(n\lfloor \frac{d}{2} \rfloor)$.
+    \end{enumerate}

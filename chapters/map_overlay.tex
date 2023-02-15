@@ -1,0 +1,148 @@
+\section{Applications}
+    To demonstrate the usefulness of the algorithms presented in this chapter, we will name two applications that usually rely on their existence.
+    \begin{enumerate}
+        \item \textbf{Boolean operations on Polygons.} \\
+        \textbf{Problem:} Given two polygons $P_1$ and $P_2$, compute their union, intersection or difference. \\
+        \textbf{Solution:} Overlay both polygons, intersect their edges and label all emerging faces with $P_1$ or $P_2$ or both depending on the polygon it is contained in. 
+        
+        \item \textbf{Weather data.} \\ 
+        \textbf{Problem:} Given maps for \emph{amount of precipitation per year} and \emph{hours of sunshine per year} find the regions with more than $H$ hours of sunshine and $M$ mm/m$^2$ of precipitation a year. \\
+        \textbf{Solution:} Interpret the regions of interest as polygons and apply the approach of the problem above.
+    \end{enumerate}
+
+\section{Data structure}
+    It quickly becomes apparent that simply storing our objects as graphs, i.e. a tuple containing vertices and edges, is not feasible since it does not allow for efficient access to corresponding parts like faces, which are necessary for solving our problems. To this end we need a data structure that can efficiently answer the following queries:
+    \begin{enumerate}[label=(\roman*), itemsep=-3pt]
+        \item Give all edges connected to a vertex in clockwise order.
+        \item Give all boundary edges of a face in clockwise order.
+        \item Give all edges of boundaries of holes in a face in clockwise order.
+        \item Give a face's neighboring face along a given edge.
+    \end{enumerate}
+    A data structure providing these operations is the \emph{doubly connected edge list} (DCEL). It is a data structure that represents a planar subdivision of a polygon or the entire plane. It consists of a set of vertices, edges and faces and needs memory in $\LO(\vert \mathcal{V} \vert + \vert \mathcal{E} \vert + \vert \mathcal{F} \vert)$. For each of the three we define the following functionals:
+    \begin{itemize}[leftmargin=3cm]
+        \item[\textbf{Vertices}:] 
+        \begin{itemize}[leftmargin=*, itemsep=-3pt]
+            \item \textsc{Coordinates}($v$), the 2D-coordinates of the vertex $v$. 
+            \item \textsc{IncidentEdge}($v$), a pointer to an outgoing half-edge.
+        \end{itemize}
+
+        \item[\textbf{Half-edges}:] 
+        \begin{itemize}[leftmargin=*, itemsep=-3pt]
+            \item \textsc{Origin}($e$), a pointer to the vertex the half-edge starts at. 
+            \item \textsc{Twin}($e$), a pointer to the half-edge that is the twin of $e$, i.e. the half-edge connecting the same vertices but in opposite direction. 
+            \item \textsc{Next}($e$) and \textsc{Prev}($e$), both pointers to the next and previous half-edge in the face's boundary, respectively. 
+            \item \textsc{IncidentFace}($e$), a pointer to the face left to $e$.
+        \end{itemize}
+
+        \item[\textbf{Faces}:] 
+        \begin{itemize}[leftmargin=*, itemsep=-3pt]
+            \item \textsc{OuterComponent}($f$), a pointer to a half-edge on the boundary of the face.
+            \item \textsc{InnerComponents}($f$), a list of pointers to half-edges on the boundaries of holes in the face.
+        \end{itemize}
+    \end{itemize}
+    With these constant time operations we can now  efficiently execute to following tasks: \\
+    Return...
+    \begin{itemize}[itemsep=-3pt]
+        \item the destination of a half edge.
+        \item all edges connected to a vertex in clockwise order (i).
+        \item a face's neighboring face along a given edge (iv).
+        \item all outgoing/ingoing edges connected to a vertex in clockwise order.
+        \item all vertices adjacent to a given vertex.
+        \item all vertices incident to a face.
+        \item all edges that bound a face (ii).
+        \item all edges of boundaries of holes in a face in clockwise order (iii).
+        \item all faces that have a given vertex on their boundary. 
+    \end{itemize}
+
+    \begin{remark}
+        People with a background in 3D-modelling might recognize this structure, as it allows for the execution of so-called half-edge collapse methods used in mesh simplification.
+    \end{remark}
+
+\section{Map overlay algorithm}
+    To be able to state the state the specifications of the algorithm we need to define the following:
+
+    \begin{definition}[Overlay of planar subdivisions]
+        Let $S_1$ and $S_2$ be two planar subdivisions of the plane. Then $O(S_1, S_2)$ is called the \emph{overlay of $S_1$ and $S_2$}. $O(S_1, S_2)$ contains a face $f$ if and only if there is a face $f_1$ in $S_1$ and a face $f_2$ in $S_2$ such that $f$ is a maximal connected subset of $f_1 \cap f_2 \neq \emptyset$.
+    \end{definition}
+
+    Thus, our algorithm should be able to do the following:
+    \begin{mdframed}
+        Given two planar subdivisions $S_1$ and $S_2$ of the plane, compute the overlay $O(S_1, S_2)$ of $S_1$ and $S_2$ with each face $f$ in $O(S_1, S_2)$ being labeled with $S_1$ and/or $S_2$ depending on where it originated from. 
+    \end{mdframed}
+    As most parts of the old subdivisions are still part of the overlay, we might as well copy the half-edges of $S_1$ and $S_2$ into the data structure $D$ meant to describe $O(S_1, S_2)$. \\
+    As this will almost surely create intersections between the edges of $S_1$ and $S_2$, we intersect the half-edges in $D$ with the sweep line algorithm from the previous section to get all intersections. All half-edges not intersected by any other can be kept. Intersected edges need to be adjusted in an upcoming step. \\
+    To adjust the edges, we only check neighboring edges intersected by the sweep line that do not originate from the same subdivision. Doing so, we can ensure that every part of $D$ above the sweep line is computed correctly. Then update the data involving edges and faces. \\
+    For a better understanding of the update steps mentioned above, we will provide rough outlines for the case of an edge and face adjustment: \\
+
+    \begin{outline}{Edge adjustment}
+        Suppose an edge $e$ from $S_1$ passes through a vertex $v$ of $S_2$. Then:
+        \begin{enumerate}
+            \item Replace $e$ by edges $e_1$ and $e_2$, connecting $v$ and the endpoints of $e$. This results in four new half-edges.
+            
+            \item Next, pair up the corresponding twins inside $e_1$ and $e_2$.
+            
+            \item Then fix the next and prev pointers of the new half-edges. All information needed can be acquired by looking at the old half-edges involved.
+            
+            \item To correct the data stored in $v$, we first have to compute the cyclic order of the newly created half-edges. 
+        \end{enumerate}
+    \end{outline}
+
+    \begin{remark}
+        Since the last step's runtime depends on the degree of $v$, it is the only step which is not executable in constant time. Overall, the vertex and edge data for the overlay can be computed in $\LO((n + k)\log(n))$ time, where $n$ is the compound complexity of $S_1$ and $S_2$ and $k$ is the complexity of their overlay.
+    \end{remark} \ \\ 
+
+    \begin{outline}{Face handling} 
+        Since vertices and edges are now computed correctly, it remains to adjust the face data. This is done as follows:
+        \begin{enumerate}
+            \item For each vertex $v$ in $D$ follow the outgoing half-edges and their successors until they arrive back at $v$ and record the found cycles. 
+            
+            \item For each cycle select the leftmost (and lowest, in case of ties) vertex contained in the cycle and compute the angle $\alpha$ spanned by the cycle half-edges in $v$.
+            
+            \item If $\alpha$ is greater than $\pi$, the cycle is the boundary of a hole within a face. Otherwise, it is the outer boundary of a face inside the face.
+            
+            \item Since each outer boundary defines a face, identify all cycles describing outer boundaries\footnote{To catch the outermost face, one defines a bounding cycle containing all of $D$.} with a node in a graph $G_D$.
+            
+            \item From each leftmost vertex $v$ of an outer cycle draw a ray to the left and record the first cycle it intersects\footnote{This has to be an inner cycle, since the ray only moves to the left and thus stays within the face.}. Then connect the nodes of the corresponding cycles with an edge in $G_D$.
+            
+            \item The connected components of $G_D$ correspond to faces of $O(S_1, S_2)$ and each node within a connected component corresponds to a unique cycle incident to this face. This information can now be used to adjust the inner, respectively, outer component data for each face and the incident face data for each half-edge in $D$.
+        \end{enumerate}
+    \end{outline}
+
+    With this information, we can now state the algorithm for computing the overlay of two planar subdivisions as layed out above.
+
+    \begin{breakablealgorithm}
+        \caption{Map overlay algorithm}
+        \label{alg:map_overlay}
+        \begin{algorithmic}[1]
+            \Input{Two planar subdivisions $S_1$ and $S_2$ as DCELs.}
+            \Output{The overlay $O(S_1, S_2)$ of $S_1$ and $S_2$ as a DCEL.}
+            \Runtime{$\LO((n + k)\log(n))$}
+            \Procedure{MapOverlay}{$S_1, S_2$}
+                \State{$D \gets$ copy of $S_1$ and $S_2$} \Comment{$\LO(n)$}
+                \State{$I \gets \text{Intersect}(S_1, S_2)$} \Comment{$\LO((n + k)\log(n))$}
+                \State{$D \gets \text{UpdateDWith}(I)$} \Comment{\hspace*{3.14cm}\ }
+                \State{$C \gets \text{ComputeCycles}(D)$} \Comment{$\LO(k)$}
+                \State{$G_D \gets \text{ComputeFaceGraph}(C)$} \Comment{\text{\qquad\,}}
+                \For{$c \in \text{Components}(G_D)$} \Comment{\text{\qquad\,}}
+                    \State{$c_\text{outer} \gets$ outer boundary cycle of $c$}
+                    \State{$c_\text{inners} \gets$ inner boundary cycles of $c$}
+                    \State{$f \gets \text{NewFace}()$}
+                    \State{$f.\text{OuterComponent} \gets c_\text{outer}[0]$}
+                    \State{$f.\text{InnerComponents} \gets [c_\text{inner}[0] \text{ for } c_\text{inner} \in c_\text{inners}]$}
+                    \For{$n \in c$}
+                        \For{$e \in \text{Cycle}(n)$}
+                            \State{$e.\text{IncidentFace} \gets f$}
+                        \EndFor
+                    \EndFor
+                \EndFor
+                \State{$L \gets \text{ComputeFaceLabels}()$}  \Comment{$\LO((n + k)\log(n))$}
+                \For{$f \in D$}  \Comment{$\LO(k)$}
+                    \State{$f.\text{Labels} \gets L[f]$}
+                \EndFor
+            \EndProcedure
+        \end{algorithmic}
+    \end{breakablealgorithm}
+    
+    \begin{remark}
+        Again, the runtime is output-sensitive and in $\LO((n + k)\log(n))$, where $n$ is the compound complexity of $S_1$ and $S_2$ and $k$ is the complexity of their overlay. This is not surprising, since the runtime of the algorithm is dominated by the computation of the intersections of the edges in both subdivisions and the labeling of all faces. 
+    \end{remark}

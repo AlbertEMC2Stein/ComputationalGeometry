@@ -1,0 +1,82 @@
+In the final chapter of these lecture notes we want to give a brief overview of the algorithms we have seen in this lecture. It is meant as a quick reference for the reader, and as a summary of the algorithms we have seen. We will not go into detail here, but rather give a short description of the algorithms and their expected runtime and memory usage. \\
+Besides that we will reiterate on the most important concepts and how they interplayed with each other across the multiple chapters. 
+
+\section{Algorithm summary}
+    \begin{table}[!h]
+        \begin{center}
+            \scriptsize
+            \begin{tabular}{|r|c|c|c|c|} \hline\hline 
+                Problem class & Approach & 'Best' algorithm &  \multicolumn{2}{c|}{(Expected) runtime / memory} \\ \hline\hline
+
+                \rowcolor{orange!20} & Sweep line (radial) & \hyperref[alg:convex_hull_graham]{Graham's scan} & $\LO(n\log(n))$ & $\LO(n)$ \\ \cline{2-5}
+                \rowcolor{orange!20} \multirow{-2}{*}{\hyperref[ch:convex_hulls]{Convex hull}} & Sweep line (radial) & \hyperref[alg:convex_hull_jarvis]{Jarvis' march} & $\LO(nh)$ & $\LO(n)$ \\ \hline
+
+                \rowcolor{orange!20} \hyperref[ch:line_segment_intersection]{Line segment intersection} & Sweep line & \hyperref[alg:line_intersection_sweep]{Bentley-Ottmann} & $\LO((n + \vert I \vert)\log(n))$ & $\LO(n)$ \\ \hline
+
+                \rowcolor{orange!20} \hyperref[ch:map_overlay]{Map overlay} & Sweep line & \hyperref[alg:map_overlay]{MapOverlay} & $\LO((n + k)\log(n))$ & $\LO(n)$ \\ \hline
+
+                \rowcolor{orange!20} & & \hyperref[alg:monotone_partion]{MonotonePartition} & $\LO(n\log(n))$ & \\ \cline{3-4}
+                \rowcolor{orange!20} & & \hyperref[alg:monotone_triangulation]{TriangulateMonotone} & $\LO(n)$ & \\ \cline{3-4}
+                \rowcolor{orange!20} \multirow{-3}{*}{\hyperref[ch:polygon_triangulation]{Polygon triangulation}} & \multirow{-3}{*}{Sweep line} & \hyperref[alg:simple_triangulation]{Triangulate} & $\LO(n\log(n))$ & \multirow{-3}{*}{$\LO(n)$} \\ \hline
+
+                \rowcolor{gray!20} & & Construction & $\LO((d + 1)n)$ & \\ \cline{3-4}
+                \rowcolor{gray!20} & & Query & $\LO(d + 1)$ & \\ \cline{3-4}
+                \rowcolor{gray!20} \multirow{-3}{*}{\hyperref[ch:quadtrees]{Quadtrees}} & \multirow{-3}{*}{Spatial subdivision} & \hyperref[alg:neighborsearch_north]{NeighborSearch} & $\LO(d + 1)$ & \multirow{-3}{*}{$\LO((d + 1)n)$} \\ \hline
+
+                \rowcolor{gray!20} & & \hyperref[alg:kdtree_construction]{BuildkDTree} & $\LO(n\log(n))$ & \\ \cline{3-4}
+                \rowcolor{gray!20} \multirow{-2}{*}{\hyperref[ch:range-_and_kd-trees]{kD-trees}} & \multirow{-2}{*}{Spatial subdivision} & \hyperref[alg:kdtree_rangesearch]{RangeSearch} & $\LO(\vert T \cap R \vert + n^{1 - \frac{1}{k}})$ & \multirow{-2}{*}{$\LO(n)$} \\ \hline
+
+                \rowcolor{gray!20} & & Construction & $\LO(n\log(n)^{k-1})$ & \\ \cline{3-4}
+                \rowcolor{gray!20} \multirow{-2}{*}{\hyperref[ch:range-_and_kd-trees]{Range-trees}} & \multirow{-2}{*}{Spatial subdivision} & \hyperref[alg:2d-range-search]{RangeSearch} & $\LO(\vert T \cap R \vert + \log(n)^k)$ & \multirow{-2}{*}{$\LO(n\log(n)^{k-1})$} \\ \hline
+
+                \rowcolor{gray!20} & & \cellcolor{green!20} \hyperref[alg:bsp_autopartitioning]{BSP2D} (with AP) & \cellcolor{green!20} $\LO^\ast(n^2\log(n))$ & \\ \cline{3-4}
+                \rowcolor{gray!20} \multirow{-2}{*}{\hyperref[ch:bsptrees]{BSP trees}} & \multirow{-2}{*}{Spatial subdivision} & \hyperref[alg:bsp_autopartitioning]{BSP2D} (without AP) & $\LO(n\log(n))$ & \multirow{-2}{*}{$\LO(n\log(n))$} \\ \hline 
+
+                \rowcolor{gray!20} & & \cellcolor{green!20} \hyperref[alg:trapezoidalmap]{TrapezoidalMap} & \cellcolor{green!20} $\LO^\ast(n\log(n))$ & \cellcolor{green!20} \\ \cline{3-4} 
+                \rowcolor{gray!20} \multirow{-2}{*}{\hyperref[ch:point_location]{Point location}} & \multirow{-2}{*}{Spatial subdivision} & \cellcolor{green!20} PointQuery & \cellcolor{green!20} $\LO^\ast(\log(n))$ & \cellcolor{green!20}\multirow{-2}{*}{$\LO^\ast(n)$} \\ \hline
+
+                \rowcolor{orange!20} \hyperref[ch:voronoi_diagrams]{Voronoi diagrams} & Sweep line & \hyperref[alg:fortune_voronoi]{Fortune's algorithm} & $\LO(n\log(n))$ & $\LO(n)$ \\ \hline
+
+                \rowcolor{green!20} \hyperref[ch:delaunay_triangulation]{Delaunay triangulation} & Randomized & \hyperref[alg:delaunay_triangulation]{DelaunayTriangulation} & $\LO^\ast(n\log(n))$ & $\LO(n)$ \\ \hline\hline
+            \end{tabular}
+        \end{center}
+        \caption{A summary of all important algorithms with their expected runtime and memory usage. For the variables influencing the runtime, please refer to the respective sections, as th same symbol may denote different quantities across chapters.}
+    \end{table}
+
+\section{Sweep line algorithms}
+    \begin{itemize}
+        \item \textbf{Requirements:} An event queue $Q$ for storing the points where the sweep line has to do  something. Then, a status queue $T$ dynamically handling structural changes relevant to the problem. Finally an output data structure $D$ representing the results.
+
+        \item \textbf{Proof of correctness:} By induction over an invariant induced by the sweep line.
+
+        \item \textbf{Applications:} \hyperref[ch:convex_hulls]{Convex hull}, \hyperref[ch:line_segment_intersection]{line segment intersection}, \hyperref[ch:map_overlay]{map overlay}, \hyperref[ch:polygon_triangulation]{polygon triangulation} and \hyperref[ch:voronoi_diagrams]{Voronoi diagrams}.
+    \end{itemize}
+
+\section{General concepts}
+    \begin{itemize}
+        \item \textbf{Proves:} Deriving running times and memory requirements. Providing lower bounds proved by reduction. Applying Euler's formula for planar graphs.
+
+        \item \textbf{General position:} Special arrangement of points and lines for edge-case avoidance. Can be implemented symbolically with lexicographic ordering. 
+
+        \item \textbf{Output-sensitive algorithms:} Some algorithms have a runtime depending on the output they generate. For example \hyperref[alg:convex_hull_jarvis]{Jarvis' march} or \hyperref[alg:kdtree_rangesearch]{RangeSearch}.
+
+        \item \textbf{Dual graphs:} Dual graphs are used to translate the view from a vertex-edge correspondence to a edge-face correspondence. This was used for the \hyperref[ch:polygon_triangulation]{art gallery problem} or the Voronoi diagram approach for computing a \hyperref[ch:delaunay_triangulation]{Delaunay triangulation}.
+    \end{itemize}
+
+\section{Data structures}
+    \begin{itemize}
+        \item \textbf{DCELs:} Doubly connected edge lists were very useful for handling mesh manipulations.
+
+        \item \textbf{Spatial subdivisions:} To find things in space, it is usually useful to strategically search it. This approach was used in the construction of \hyperref[ch:quadtrees]{quad trees}, \hyperref[ch:range-_and_kd-trees]{kD- and range trees}, \hyperref[ch:bsptrees]{BSP trees}, \hyperref[ch:point_location]{trapezoidal maps} and \hyperref[ch:voronoi_diagrams]{Voronoi diagrams}.
+
+        \item \textbf{Triangulation:} To be able to describe objects of any shape or form we used triangulations to create meshes that consist of the most simple parts, i.e. triangles. 
+    \end{itemize}
+
+\section{Randomized algorithms}
+    \begin{itemize}
+        \item \textbf{Characteristics:} Random algorithms usually define themselves by non-deterministic behavior caused by either a shuffled input or a random selection of the next element considered in the algorithm.
+
+        \item \textbf{Expected runtime:} Since the algorithm behave different each time they are executed, a new metric to measure their performance is introduced, namely the expected runtime. To calculate this runtime, one usually defines indicator variables carrying enough information about the temporal behavior they encompass and summing up their expected outcomes to then fall back on a comparison with the harmonic series to obtain a logarithmic upper bound.
+
+        \item \textbf{Applications:} Random algorithms were used to improve the performance in constructing \hyperref[ch:bsptrees]{BSP trees}, \hyperref[ch:point_location]{trapezoidal maps} and \hyperref[ch:delaunay_triangulation]{Delaunay triangulations}.
+    \end{itemize}

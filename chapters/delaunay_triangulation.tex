@@ -1,0 +1,242 @@
+\section{Definitions}
+    In a previous chapter we have used the concept of triangulations to solve the so called art gallery problem (cf. definition \ref{def:art_gallery_problem} in chapter \ref{ch:polygon_triangulation}). Back then, we did not rigorously define the term triangulation, since we only needed it as a tool to solve the art gallery problem and thus used the term triangulation as a purely geometric one. In this chapter however, we will define the term triangulation and its variants in more detail.
+
+    \begin{definition}[Maximal planar subdivision] 
+        A \emph{maximal planar subdivision} is a subdivision $S$ such that no edge connecting two vertices in $S$ can be added to $S$ without destroying its planarity.
+    \end{definition}
+
+    \begin{definition}[Triangulation] 
+        \label{def:triangulation}
+        Let $P = \{p_1, \ldots, p_n\}$ be a set of $n$ points in the plane. Then, a \emph{triangulation} of $P$ is a maximal planar subdivision whose vertex set coincides with $P$.
+    \end{definition}
+
+    As in the case with convex hulls in chapter \ref{ch:convex_hulls}, triangulations do not need to be unique. However, there are some triangulations that are more desirable than others. For example, we want to avoid triangles with obtuse angles, since they are often prone to numerical errors. Thus, the following definitions come into play.
+
+    \begin{definition}[Angle-optimal triangulation] 
+        Let $T$ be a triangulation of a point set $P$ and suppose it has $m$ triangles. Then...
+        \begin{enumerate}[label=(\roman*)]
+            \item the angle-vector of $T$ is defined as $\alpha(T) := (\alpha_1, \dots, \alpha_{3m})$, where $\alpha_i$ is the $(3m - i + 1)$-th largest angle.
+            
+            \item $\alpha(T)$ is lexicographically larger than $\alpha(T')$ if and only if $\alpha_i > \alpha'_i$ for some $i$ and $\alpha_j = \alpha'_j$ for all $j < i$.
+            
+            \item a triangulation $T$ is called \emph{angle-optimal} if $\alpha(T) \geq \alpha(T')$ for all triangulations $T'$ of $P$.
+        \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[Delaunay triangulation] 
+        A \emph{Delaunay triangulation} is a triangulation $T$ maximizing $\min \alpha(T)$. 
+    \end{definition}
+
+    At last, we will fix some notation for concepts that we will use at a later point in this chapter. 
+
+    \begin{definition}[Delaunay graph] 
+        Let $P$ be a set of $n$ distinct points in the plane that do not lie on a common line. Then, the Delaunay graph\footnotemark{} $\text{DG}(P) = (P, E)$ is the dual graph to the Voronoi diagram induced by $P$. 
+    \end{definition}
+    \footnotetext{Since the faces are not necessarily triangles, we call this object Delaunay graph instead of Delaunay triangulation}
+
+    \begin{definition}[Illegal edges] 
+        Consider the (only) two triangulations\footnotemark{} $T$ and $T'$ of a convex quadrilateral $p_1p_2p_3p_4$. Then, the diagonal edge $\overline{p_1p_3}$ in $T$ is called \emph{illegal}, if $\min \alpha(T) < \min \alpha(T')$. Thus, an edge within a convex quadrilateral is illegal, if flipping it increases $\alpha(T)$. 
+    \end{definition}
+    \footnotetext{These triangulations only differ in one internal, namely the diagonal, edge. Thus, they can be transformed into each other by flipping said edge.}
+
+    \begin{definition}[Legal triangulation] 
+        A triangulation $T$ is \emph{legal} if it does not contain any illegal edges, i.e. edges that would increase $\alpha(T)$ when flipping them. 
+    \end{definition}
+
+    Although they might seem quite arbitrary right now, they will prove themselves to be of great use later on.
+
+\section{Applications}
+    With our notations fixed, we can now turn to the applications of triangulations. In the following, we will discuss two applications of triangulations in computer graphics and engineering.
+
+    \begin{enumerate}
+        \item \textbf{Surfaces in computer graphics.} \\
+        \textbf{Problem:} Given a set of points $P$ on the surface of a virtual landscape, find a triangulation of $P$ such that the triangles are as equilateral as possible to avoid rendering artifacts. \\
+        \textbf{Solution:} Compute a angle-optimal triangulation of $P$.
+    
+        \item \textbf{Finite elements method.} \\ 
+        \textbf{Problem:} Given a set of collocation points $P$, generate a triangulation suitable for the finite element method. \\
+        \textbf{Solution:} Since the quality of finite element solvers depends on the maximal obtuseness of the triangulation chosen, we want to generate an angle-optimal triangulation of $P$.
+    \end{enumerate}
+
+\section{Analysis}
+    In this section, we will prove some basic properties of triangulations. We will start with a lemma that will give us an important identity involving the number of triangles and edges required for a triangulation, namely:
+
+    \begin{lemma}    
+        Let $P$ be a set of $n$ points in the plane that do not lie on a common line and let $k := \vert \partial\mathrm{conv}(P) \cap P \vert$. Then any triangulation of $P$ has $2n - 2 - k$ triangles and $3n - 3 - k$ edges. 
+    \end{lemma}
+    \begin{proof}
+        Let $T$ be a triangulation of $P$ with $m$ triangles. Then $n_f = m + 1$, since we have to account for the unbounded face $f_\infty := \RR^2 \setminus \mathrm{conv}(P)$. Moreover, we have three edges for each triangle and $k$ edges for $f_\infty$. Since each edges is shared between two faces we get $n_e = \frac{3m + k}{2}$. Now apply Euler's formula with $n_v = n$ to obtain $m = 2n - 2 - k$ and $n_e = 3n - 3 - k$. 
+    \end{proof}
+
+    Next, we want to break down the problem of finding an angle-optimal triangulation into smaller subproblems. To this end, we consider the most basic polygon which does not have a trivial triangulation; the quadrilateral. 
+
+    \begin{theorem}[Detection of illegal edges]
+        \label{lma:illegal_edge_detection}
+        Let $p_1p_2p_3p_4$ be a convex equilateral and $C$ be the circle through $p_1, p_2$ and $p_3$. Then, $\overline{p_1p_3}$ is illegal if and only if $p_4$ lies in the interior of $C$\footnotemark{}. Moreover, if $p_4$ does not lie on the boundary of $C$, then exactly one of the diagonals in the quadrilateral is an illegal edge. 
+    \end{theorem}
+    \footnotetext{This result allows to efficiently check whether a given edge $e$ is legal or not.}
+
+    Proceeding with our analysis, we want to prove some properties involving the Delaunay graph indued by our point set $P$.
+
+    \begin{lemma} 
+        The Delaunay graph $\text{DG}(P)$ of a point set $P$ is a planar graph.
+    \end{lemma}
+    \begin{proof} 
+        We only give an idea to this proof: Use contradiction and argue by considering the largest empty circles in the Voronoi diagram and their intersections with edges.
+    \end{proof}
+
+    Since we are working with planar graphs and empty circles, we can restate a result we derived in the context of Voronoi diagrams:
+
+    \begin{lemma} 
+        Let $P$ be a set of points in the plane. Then, three points $p_i, p_j$ and $p_k$ in $P$ are vertices of the same face in $\text{DG}(P)$ if and only if the circle containing $p_i, p_j$ and $p_k$ contains no point of $P$ in its interior.
+    \end{lemma}
+
+    This now immediately implies the following result:
+
+    \begin{theorem}[Characterization of Delaunay triangulations]
+        Let $P$ be a set of points in the plane and let $T$ be a triangulation of $P$. Then, $T$ is a Delaunay triangulation of $P$ if and only if the circumcircle of any triangle in $T$ contains no point of $P$ in its interior. 
+    \end{theorem}
+
+    One theorem that will be of great use in the following is a generalization of Thales' theorem. In most cases, Thales' theorem is stated like this:
+    \begin{quote}
+        \textit{
+        If $A$, $B$, and $C$ are distinct points on a circle where the line $\overline{AC}$ is a diameter, the angle $\measuredangle ABC$ is a right angle.}
+    \end{quote}
+    We however deal with lines that are not necessarily diameters of the circle in question. Thus, we need a generalized result called the inscribed angle theorem.
+    \begin{theorem}[Inscribed angle theorem] 
+        Let $C$ be a circle, $\ell$ a line passing through $C$ with $\ell \cap C = \{a, b\}$ and $p, q ,r$ and $s$ points lying on the same side of $\ell$ with $p$ and $q$ lying on, $r$ inside of and $s$ outside of $C$. Then 
+        $$\measuredangle arb > \measuredangle apb = \measuredangle aqb > \measuredangle asb .$$
+    \end{theorem}
+
+    With this theorem, we are now able to prove the following lemma.
+
+    \begin{lemma}
+        Let $P$ be a set of points in the plane. Then, a triangulation $T$ of $P$ is legal if and only if $T$ is a Delaunay triangulation of $P$.
+    \end{lemma}
+    \begin{proof} 
+        Again, we only give an idea to this proof: 
+        \begin{itemize}
+            \item[] '$\Rightarrow$': Assume the contrary. Then there exists a triangle that contains a point of $P$ within its circumcircle. By the definition of a legal edge, the result about detecting illegal edges and the inscribed angle theorem, we obtain the contradiction.
+            
+            \item[] '$\Leftarrow$': By definition.
+        \end{itemize}
+        This then shows the claim.
+    \end{proof}
+
+    We are now ready to prove the main result of this section:
+
+    \begin{theorem}[Optimality of Delaunay triangulations]
+        Let $P$ be a set of points in the plane. Then any angle-optimal triangulation of $P$ is a Delaunay triangulation of $P$. Moreover, any Delaunay triangulation of $P$ maximizes the minimum angle across all triangulations of $P$. 
+    \end{theorem}
+    \begin{proof} 
+        Since any angle-optimal triangulation $T$ must be legal, it follows by the previous lemma that $T$ is also a Delaunay triangulation of $P$. In particular, if there are no more than three points on any empty circle's boundary, then there exists only one legal triangulation, i.e. the angle-optimal, hence Delaunay triangulation of $P$ is unique.
+    \end{proof}
+
+\section{Algorithms}
+    Now that we have analyzed the problem at hand in great detail, we want to put our focus on developing efficient algorithms for the problem. As always, we start by specifying what we want to achieve:
+    \begin{mdframed}
+        Given a set of points $P$, compute a triangulation of $P$ that maximizes the minimum angle across all triangulations of $P$.
+    \end{mdframed}
+    We will start by presenting a naive iterative algorithm.
+
+    \subsection{Naive incremental algorithm}
+        Since flipping an illegal edge in a triangulation $T$ increases $\alpha(T)$, iteratively flipping all illegal edges yields an optimal triangulation.
+
+        \begin{breakablealgorithm}
+            \caption{Legal triangulation}
+            \label{alg:legal_triangulation}
+            \begin{algorithmic}[1]
+                \Input{A triangulation $T$ of a set of points $P$.}
+                \Output{A legal triangulation of $P$}
+                \Runtime{$\LO(n^2)$}
+                \Procedure{LegalTriangulation}{$T$}
+                    \While{$T.\text{illegalEdges} \neq \emptyset$}
+                        \State{$e \gets T.\text{illegalEdges}[0]$}
+                        \State{$\triangle apb \gets e.\text{incidentFace}$}
+                        \State{$\triangle aqb \gets e.\text{twin.incidentFace}$}
+                        \State{$T.\text{remove}(e)$}
+                        \State{$T.\text{insert}(\overline{pq})$}
+                    \EndWhile
+                    \State \Return $T$
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        Since every flip strictly improves the triangulation and there are only finitely different triangulations, the algorithm must terminate.
+
+    \subsection{Voronoi based triangulation}
+        Another, more efficient approach, would be to use the theorems stated above to proceed as follows: \\
+
+        \begin{outline}{VoronoiTriangulation} 
+            \begin{enumerate}
+                \item Compute the Voronoi diagram of $P$. 
+                \item Compute its dual graph $\text{DG}(P)$.
+            \end{enumerate}
+        \end{outline}
+
+        This approach however requires an available implementation of the Voronoi diagram algorithm which might not be given. Moreover, if the points in $P$ happen to lie on a common circle and $\vert P \vert \geq 4$, the Delaunay graph really is a graph and not a triangulation. Thus, we need to find a robust alternative approach independent of the Voronoi diagram algorithm. 
+
+    \subsection{Fast incremental algorithm}
+        Like in the case with the point location problem in chapter \ref{ch:point_location}, we start out by finding a single triangle or a quadrilateral bounding box made out of two triangles that contain the entirety of $P$ and make up a legal triangulation of the quadrilateral. Then we add the points of $P$ in a random order and create an appropriate amount of new triangles each step. To obtain a legal triangulation we also restore the Delaunay property, i.e. the non-existence of illegal edges, after each insertion. If more than three points lie on the same circle, the corresponding face can be triangulated arbitrarily\footnote{In this case the Delaunay triangulation is not uniquely determined.}. 
+
+        \begin{breakablealgorithm}
+            \caption{Delaunay triangulation}
+            \label{alg:delaunay_triangulation}
+            \begin{algorithmic}[1]
+                \Input{A set of $n$ distinct points $P = \{p_1, \dots, p_n\}$ in the plane.}
+                \Output{A Delaunay triangulation $T$ of $P$.}
+                \Runtime{$\LO^\ast(n\log(n))$}
+                \Procedure{DelaunayTriangulation}{$P$}
+                    \State{$P \gets \text{Shuffle}(P)$}
+                    \State{$T \gets \text{BoundingTriangle}(P)$}
+                    \For{$r = 1, \dots, n$}
+                        \State{$T^{(1)}, T^{(2)} \gets T.\text{query}(p_r)$}
+                        \If{$T^{(2)} = \text{None}$}
+                            \State{$\triangle p_ip_jp_k \gets T^{(1)}$}
+                            \State{$T.\text{remove}(T^{(1)})$}
+                            \State{$T.\text{insert}(\triangle p_ip_rp_k, \triangle p_ip_jp_r, \triangle p_jp_kp_r)$}
+                            \For{$e = \overline{p_ip_j}, \overline{p_jp_k}, \overline{p_kp_i}$}
+                            \State{$\text{LegalizeEdge}(p_r, e, T)$}
+                        \EndFor
+                        \Else
+                            \State{$\triangle p_ip_kp_j \gets T^{(1)}$}
+                            \State{$\triangle p_ip_lp_j \gets T^{(2)}$}
+                            \State{$T.\text{remove}(T^{(1)}, T^{(2)})$}
+                            \State{$T.\text{insert}(\triangle p_ip_rp_l, \triangle p_lp_jp_r, \triangle p_jp_rp_k, \triangle p_kp_rp_i)$}
+                            \For{$e = \overline{p_ip_l}, \overline{p_lp_j}, \overline{p_jp_k}, \overline{p_kp_i}$}
+                                \State{$\text{LegalizeEdge}(p_r, e, T)$}
+                            \EndFor
+                        \EndIf
+                    \EndFor
+                    \State{$T.\text{removeBoundingTriangles}()$}
+                    \State\Return{$T$}
+                \EndProcedure
+                \Procedure{LegalizeEdge}{$p_r, \overline{p_ip_j}, T$}
+                    \If{$\text{IsIllegal}(\overline{p_ip_j})$}
+                        \State{$\triangle p_ip_jp_k \gets \triangle p_rp_ip_j.\text{adjacentAlong}(\overline{p_ip_j})$}
+                        \State{$T.\text{remove}(\overline{p_ip_j})$}
+                        \State{$T.\text{insert}(\overline{p_rp_k})$}
+                        \State{$\text{LegalizeEdge}(p_r, \overline{p_ip_k}, T)$}
+                        \State{$\text{LegalizeEdge}(p_r, \overline{p_kp_j}, T)$}
+                    \EndIf
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \begin{remark}
+            To avoid cluttered notation, we updated the set $P$ in the beginning by shuffling it in-place instead of creating a new set $P^\ast$ like we did in the point location algorithm. 
+        \end{remark}
+
+        \begin{theorem}
+            The algorithm DelaunayTriangulation correctly computes a Delaunay triangulation of $P$ in $\LO(n\log(n))$ expected time.
+        \end{theorem}
+        \begin{proof}
+            First, we show that all new triangles satisfy the Delaunay property at the end of each step. \\
+            Assume one of the triangles $T_r$ generated during the insertion of a point $p_r$ does not satisfy the Delaunay condition. Then, an edge between $p_r$ and the triangle $\Delta$ that was generated by removing the triangles must be flipped. This yields a new triangle $\Gamma$ of consecutive points $p_i, p_j$ and $p_k$ of $\Delta$. If $\Gamma \in T$ before the insertion, $\Gamma$ was removed, since it violated the Delaunay condition with $p_r$. If, on the other hand, $\Gamma \notin T$ before the insertion occurred, it did not satisfy the Delaunay condition even before $p_r$ was inserted. \\
+            Since both cases yield a contradiction the algorithm must yield a correct Delaunay triangulation. \\
+            Now to the second statement. Naively implementing this algorithm still yields a runtime of $\LO(n^2)$ because the search for a single triangle containing a point $p_r$ takes $\LO(r)$ time. Using a trapezoidal map on the other hand reduces the expected runtime for queries to $\LO^\ast(\log(n))$. Since the expected number of triangles that must be removed ins constant in every step, we get a total expected runtime of $\LO^\ast(n\log(n))$ for the algorithm. 
+        \end{proof}
+
+        \begin{remark} 
+            The lowest bound for the runtime of the Delaunay and Voronoi construction is in $\Omega(n\log(n))$. Nevertheless, the memory requirements are still in $\LO(n)$.
+        \end{remark}

@@ -1,0 +1,232 @@
+\section{The art gallery problem}
+    In this chapter we will focus on one single problem illustrating the wide range of applications of triangulations (cf. definition \ref{def:triangulation} in chapter \ref{ch:delaunay_triangulation}). More precisely, we will consider the \emph{art gallery problem} which is a classical problem in computational geometry. It is stated like this: 
+
+    \begin{definition}[The Art Gallery Problem (AGP)]
+        \label{def:art_gallery_problem}
+        Given a polygon $P$ (representing a set of connected rooms) find a set of points $S$ (representing cameras) such that every point $p \in P$ is connectable to at least one point $s \in S$ such that $\overline{ps} \in P$ ($p$ is visible from $s$).
+    \end{definition}
+
+    To focus on  the most important aspects of this problem, we restrict ourselves to simple polygons, i.e. polygons without holes, since the general problem is NP-hard and thus not efficiently solvable, according to today's knowledge. \\
+    Giving this problem some thought, one might notice that if $P$ is a simple polygon, the problem can be solved with a set $S$ satisfying $\vert S \vert \leq \lfloor \frac{n}{3} \rfloor$\footnote{This bound is sharp. To see this, consider a room looking like a \emph{Toblerone}\textsuperscript{TM} with $n = 3k$ vertices and $k$ spikes.}. This upper bound arises in the following way: \\ 
+    Triangulate the polygon such that each triangle only has vertices which are already in $P$ and 3-color the obtained graph. $S$ can now be defined as the points of $P$ which have the color of least occurrence\footnote{Since each color occurs in each triangle and triangles are convex, each $s \in S$ can 'see' each point in the triangles containing $s$. Thus, each point in $P$ is visible from at least one point in $S$}. 
+
+\section{3-coloring of simple polygons}
+    As motivated in the previous section, a first step of solving the AGP is finding a way to 3-color the triangulation of a simple polygon. 
+
+    \begin{proposition}
+        Each triangulation $T_P$ of a simple polygon $P$ possesses a 3-coloring.
+    \end{proposition}
+    \begin{proof}
+        Consider the dual graph $G = (V_G, E_G)$ of the triangulation $T_P$. Then
+        $$(t_1, t_2) \in E_G \iff \exists (v_1, v_2) =: e \in T_P : e \in t_1 \land e \in t_2 .$$ 
+        Moreover, since $P$ does not contain any holes, $G$ is acyclic and thus a tree. \\
+        Now choose an arbitrary $t \in T_P$ and color each vertex a different color. Starting at the node in $G$ corresponding to $t$, we start a DFS. Since each edge in $G$ connects two triangles sharing an edge in $T_P$, the triangle corresponding to the node currently visited in the DFS already has two of its vertices colored, i.e. the color for the third vertex is uniquely determined. Thus, we get a 3-coloring of $T_P$ after the DFS visited the last node. 
+    \end{proof}
+
+    \begin{remark}
+        The proof of the proposition immediately yields an $\LO(n)$ recursive algorithm for computing a 3-coloring of a given triangulation.
+    \end{remark}
+
+\section{Polygon triangulation}
+    Now that we have an algorithm for 3-coloring a triangulation of a simple polygon, we can turn our attention to the problem of actually finding a triangulation of a simple polygon in the first place. 
+
+    \subsection{Naive approach}
+        As before, we start with a naive approach and then try to improve it. The following insight will provide us with a first algorithm.
+
+        \begin{proposition}
+            Each simple polygon with $n$ vertices can be triangulated with $n-2$ triangles each of which only containing vertices in $P$.
+        \end{proposition}
+        \begin{proof}
+            We show by induction over $n \geq 3$. Since the case $n = 3$ is trivial, we now consider $n > 3$ and assume that the proposition holds for all $3 \leq m < n$. \\
+            Let $u, v$ and $w$ be three consecutive vertices of $P$, where $v$ is the vertex with smallest $x$-coordinate (and $y$-coordinate in case of ties). If $\overline{uw} \in P \setminus \partial P$ we can split $P$ along this segment to obtain the partition $P_1 \cup P_2 = P$. Otherwise there is at least one vertex $v \in P$ between $v$ and $\overline{uw}$. Of all such vertices choose the vertex $r$ maximizing the distance to $\overline{uw}$. Then partition $P$ along $\overline{vr}$ into $P_1 \cup P_2 = P$. \\
+            Now apply the induction hypothesis to $P_1$ and $P_2$ to obtain a triangulation of $P_1$ and $P_2$ with $n_1 - 2$ and $n_2 - 2$ triangles respectively and connect them to obtain a triangulation of $P$ with $(n_1 - 2) + (n_2 - 2) = n + 2 - 4 =  n - 2$ triangles.
+        \end{proof}
+
+        \begin{remark}
+            The proof of the proposition immediately yields an $\LO(n^2)$ recursive algorithm for computing a triangulation of a given simple polygon. Although convex polygons can be triangulated in linear time, partitioning a simple polygon into convex ones again puts the runtime into $\LO(n^2)$. 
+        \end{remark} 
+
+    \subsection{Monotone partitioning}
+        Our first improvement will involve a smarter way of splitting up a simple polygon into a special kind of polygons for which triangulations can be efficiently computed. To formulate this idea in a precise manner, we need to introduce some definitions.
+
+        \begin{definition}[Monotone polygon]
+            A polygon $P$ is called \emph{$g$-monotone}, where $g$ is a line in $\RR^2$, if
+            $$\forall g' \bot\, g \ \exists p, q \in \RR^2: P \cap g' \in \{\emptyset, \overline{pq}\} .$$
+        \end{definition}
+        
+        To shorten this notation for our most prevalent use cases we will identify the $x$- and $y$-axis with the lines $\left] -\infty, \infty \right[ \times \{0\}$ and $\{0\} \times \left] -\infty, \infty \right[$ respectively.
+
+        \begin{definition}[Point ordering] 
+            Let $u$ and $v$ be points. Then $u < v$ ($u$ is below of $v$), if $u_y < v_y \lor u_y = v_y \land u_x > v_x$. 
+        \end{definition}
+
+        \begin{definition}[Vertex types]
+            A vertex $v$ in a $y$-monotone polygon $P$ with inner angle $\alpha$ and neighbors $u$ and $w$ is called a...
+            \begin{itemize}[itemsep=-3pt]
+                \item \textbf{start vertex}, if $u < v$, $w < v$ and $\alpha < \pi$.
+                \item \textbf{split vertex}, if $u < v$, $w < v$ and $\alpha > \pi$.
+                \item \textbf{end vertex}, if $u > v$, $w > v$ and $\alpha < \pi$.
+                \item \textbf{merge vertex}, if $u > v$, $w > v$ and $\alpha > \pi$.
+                \item \textbf{regular vertex}, otherwise.
+            \end{itemize}
+        \end{definition}
+
+        With these definitions in place, we can now state the following important theorem.
+
+        \begin{theorem}[Characterization of $y$-monotone polygons]
+            A polygon $P$ is $y$-monotone, if it has no split and merge vertices.
+        \end{theorem}
+        \begin{proof}
+            Assume that $P$ iis not $y$-monotone. Then there is a horizontal line $g$ that intersects $\partial P$ in three points $u, v$ and $w$ from left to right. W.l.o.g. we assume that $\overline{uv} \in P$. \\
+            Traversing the polygon starting in $v$ in both directions, the next intersections with $g$ are $u$ and $v$, respectively. Thus, if $(u, p_1, \dots, p_r, v)$ contains an end, respectively, start vertex, then the polygon chain $(v, q_1, \dots, q_r, w)$ must have a split, respectively, merge vertex. Analogously, if $(v, q_1, \dots, q_r, w)$ contains an end, respectively, start vertex, then the polygon chain $(u, p_1, \dots, p_r, v)$ must have a split, respectively, merge vertex. Hence, $P$ has at least one split or merge vertex.
+        \end{proof}
+
+        This classification allows us to use a horizontal sweep line moving from top to bottom which triggers and handles an event at each vertex. If the sweep line hits a split or merge vertex, try to connect it with another vertex above or below to produce a partition of $P$ consisting only of $y$-monotone polygons.  
+
+        \begin{breakablealgorithm}
+            \caption{Monotone partitioning}
+            \label{alg:monotone_partion}
+            \begin{algorithmic}[1]
+                \Input{A simple polygon $P$ stored as DCEL $D$.}
+                \Output{A partition of $P$ into $y$-monotone polygons.}
+                \Runtime{$\LO(n\log(n))$}
+                \Procedure{MonotonePartition}{$P$}
+                    \State{$Q \gets \text{FillQueue}(D)$} \Comment{$\LO(n\log(n))$}
+                    \State{$T \gets \emptyset$} \Comment{$\LO(1)$}
+                    \While{$Q \neq \emptyset$} \Comment{$\LO(n)$}
+                        \State{$v_i \gets Q.\text{pop}()$}
+                        \State{\text{HandleEvent}$(v_i, \text{Type}(v_i), T, D)$} \Comment{$\LO(\log(n))$}
+                    \EndWhile
+                    \State\Return{$D$}
+                \EndProcedure
+                \Procedure{StartVertexEvent}{$v_i, T, D$}
+                    \State{$e_i.\text{helper} \gets v_i$}
+                    \State{$T$.insert($(e_i, v_i))$}
+                \EndProcedure
+                \Procedure{EndVertexEvent}{$v_i, T, D$}
+                    \If{Type($e_{i-1}$.helper) = MERGE}
+                        \State{$v_h \gets e_{i-1}.\text{helper}$}
+                        \State{$D$.insert($\overline{v_iv_h}$)}
+                    \EndIf
+                    \State{$T$.remove($e_{i-1}$)}
+                \EndProcedure
+                \Procedure{SplitVertexEvent}{$v_i, T, D$}
+                    \State{$e_j \gets T.\text{findLeft}(v_i)$}
+                    \State{$v_h \gets e_j.\text{helper}$}
+                    \State{$D$.insert($\overline{v_iv_h}$)}
+                    \State{$e_j.\text{helper} \gets v_i$}
+                    \State{$T$.insert($(e_i, v_i))$}
+                \EndProcedure
+                \Procedure{MergeVertexEvent}{$v_i, T, D$}
+                    \If{Type($e_{i-1}$.helper) = MERGE}
+                        \State{$v_h \gets e_{i-1}.\text{helper}$}
+                        \State{$D$.insert($\overline{v_iv_h}$)}
+                    \EndIf
+                    \State{$T$.remove($e_{i-1}$)}
+                    \State{$e_j \gets T.\text{findLeft}(v_i)$}
+                    \If{Type($e_j$.helper) = MERGE}
+                        \State{$v_h \gets e_j.\text{helper}$}
+                        \State{$D$.insert($\overline{v_iv_h}$)}
+                    \EndIf
+                    \State{$e_j.\text{helper} \gets v_i$}
+                \EndProcedure
+                \Procedure{RegularVertexEvent}{$v_i, T, D$}
+                    \If{IsRightOf($P$, $v_i$)}
+                        \If{Type($e_{i-1}$.helper) = MERGE}
+                            \State{$v_h \gets e_{i-1}.\text{helper}$}
+                            \State{$D$.insert($\overline{v_iv_h}$)}
+                        \EndIf
+                        \State{$T$.remove($e_{i-1}$)}
+                        \State{$e_i.\text{helper} \gets v_i$}
+                        \State{$T$.insert($(e_i, v_i))$}
+                    \Else
+                        \State{$e_j \gets T.\text{findLeft}(v_i)$}
+                        \If{Type($e_j$.helper) = MERGE}
+                            \State{$v_h \gets e_j.\text{helper}$}
+                            \State{$D$.insert($\overline{v_iv_h}$)}
+                        \EndIf
+                        \State{$e_j.\text{helper} \gets v_i$}
+                    \EndIf
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \begin{remark}
+            In this algorithm we assume, that $v_1$ is the first vertex (largest vertex with respect to  '$>$') and  all other vertices are numbered counterclockwise. Moreover, we set $e_i := \overline{v_iv_{i+1}}$. This pre-processing step does not worsen the overall runtime. Moreover, $T$ stores the ($e$,$v$)-pairs ordered by the left-to-right position of $e$.
+        \end{remark}
+
+        \begin{proposition}
+            MonotonePartition yields a correct partition into $y$-monotone polygons.
+        \end{proposition}
+        \begin{proof} 
+            First, note that all split and merge vertices are removed by upward and downward diagonals, respectively. Here, we only show that SplitVertexEvent produces no intersecting diagonals. All other events are handled similarly. \\
+            Let $\overline{v_iv_h}$ be the newly inserted diagonal, $e_j$ and $e_k$ be the two edges left and right of $v_i$ and $e_j$.helper = $v_h$. Then, consider the area $Q \subset P$ between $e_j$ and $e_k$ bounded by two lines with slope zero, one passing through $v_i$ and one passing through $v_h$. Since $v_h$ is the last event before $v_i$ relative to $e_j$, $Q$ does not contain any further edges or vertices. Thus, the added diagonal cannot intersect any other edge in $D$.
+        \end{proof}
+
+    \subsection{Triangulation of monotone polygons}
+        Now that we are able to generate a partition of $P$ into $y$-monotone polygons, we can triangulate each polygon separately and then put the different triangulations back together. To obtain a triangulation of a $y$-monotone polygon, we will pursue a greedy approach: \\ 
+        Take a $y$-monotone polygon $P$ and split it into a left and right chain relative to the first (top) vertex. Then greedily connect vertices on opposite chains, if possible. \\
+        Naively following this strategy will cause problems at vertices $v$ located at corners with an inner angle of $\alpha(v) > \pi$, since the inserted line might not lie inside $P$. To bypass this problem, we use a stack $S$ to record all possible vertices. If $v_\text{last} := S.$pop(), then a potential diagonal $\overline{v_i v_k}$ is legal in a right/left chain, if $v_k$ is on the left/right of $\overline{v_i v_\text{last}}$. 
+
+        \begin{breakablealgorithm}
+            \caption{Triangulation of monotone polygons}
+            \label{alg:monotone_triangulation}
+            \begin{algorithmic}[1]
+                \Input{$y$-monotone polygon $P$ as DCEL $D$}
+                \Output{Triangulation of $P$ in $D$}
+                \Runtime{$\LO(n)$}
+                \Procedure{TriangulateMonotone}{$P$}
+                    \State{$V \gets \text{Ysort}(D)$}
+                    \State{$S \gets \emptyset$}
+                    \State{$S$.push($V[0], V[1]$)}
+                    \For{$i = 3, \dots, |V|-1$}
+                        \State{$v_\text{last} \gets S.$pop()}
+                        \If{$\text{Chain}(V[i]) \neq \text{Chain}(v_\text{last})$}
+                        \While{$\vert S \vert > 0$}
+                            \State{$D.$push($\overline{V[i]v_{last}}$)}
+                            \State{$v_\text{last} \gets S.$pop()}
+                        \EndWhile
+                        \State{$S$.push($V[i-1], V[i]$)}
+                        \Else
+                            \State{$v_\text{last} \gets S.$pop()}
+                            \While{$\vert S \vert > 0$}
+                                \State{$v_\text{last} \gets S.$pop()}
+                                \If{\text{IsLegal}($\overline{V[i]v_{last}}$)}
+                                    \State{$D.$push($\overline{V[i]v_{last}}$)}
+                                \EndIf
+                            \EndWhile
+                            \State{$S$.push($v_\text{last}, V[i]$)}
+                        \EndIf
+                    \EndFor
+                    \State{$v_\text{last} \gets S.$pop()}
+                    \While{$\vert S \vert > 1$}
+                        \State{$v_\text{last} \gets S.$pop()}
+                        \State{$D.$push($\overline{V[n]v_{last}}$)}
+                    \EndWhile
+                    \State\Return{$D$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+    \subsection{Triangulation of simple polygons}
+        Combining these algorithms now allows us to triangulate arbitrary simple polygons by first partitioning the simple polygon into $y$-monotone polygons, triangulating each of them separately and then gluing their respective triangulations back together. 
+
+        \begin{breakablealgorithm}
+            \caption{Triangulation of simple polygons}
+            \label{alg:simple_triangulation}
+            \begin{algorithmic}[1]
+                \Input{Simple polygon $P$ as DCEL $D$}
+                \Output{Triangulation of $P$ in $D$}
+                \Runtime{$\LO(n\log(n))$}
+                \Procedure{Triangulate}{$P$}
+                    \State{$D_\text{monotone} \gets \text{MonotonePartition}(P)$}
+                    \For{$f \in \text{InnerFaces}(D_\text{monotone})$}
+                        \State{$D$.add(TriangulateMonotone($f$))}
+                    \EndFor
+                    \State\Return{$D$}
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm}
+
+        \textbf{Remark:} MonotonePartition also works for polygons with holes.  In this case, the total runtime for triangulation is $\Omega(n\log(n))$. Additionally, in 1991, Chazelle developed a $\LO(n)$ algorithm for simple polygons. In higher dimensions this problem becomes NP-hard. 
+

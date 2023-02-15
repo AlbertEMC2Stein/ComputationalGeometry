@@ -1,0 +1,97 @@
+\section{Applications}
+    At first glance it seems that the problem of finding all intersections of line segments is not very useful, since most real life objects are not perfectly straight lines. However, one can use the fact that any curve can be approximated arbitrarily well by a set of line segments, making the algorithms applicable to the following problems:
+    \begin{enumerate}
+        \item \textbf{GIS.} \\
+        \textbf{Problem:} Given a map with roads and a map with rivers, compute all points, where bridges must be constructed. \\
+        \textbf{Solution:} Calculate all intersections of roads and rivers. 
+
+        \item \textbf{Graph intersection.} \\
+        \textbf{Problem:} Given two planar graphs embedded in the plane, compute all their intersections to combine them into a single planar graph. \\
+        \textbf{Solution:} Calculate all intersections of the edges of both graphs, duplicate and shorten them and add new vertices accordingly. 
+    \end{enumerate} 
+
+\section{Algorithms}
+    Again, we want to specify what problem the algorithms should be able to solve:
+    \begin{mdframed}
+        Given a finite set $S$ consisting of $n$ line segments embedded in the plane, return all of their intersections. 
+    \end{mdframed}
+    For simplicity we assume, that no three segments intersect in the same point or that segments are vertical, horizontal or overlapping.
+
+    \subsection{Naive approach}
+        Like before, one first might have the idea to check all segments against each other and return all found intersections. However, this approach is not very efficient, since it has a runtime of $\LO(n^2)$, which is undesirable under most circumstances. Nevertheless, it is a good starting point for the development of more efficient algorithms.
+
+        \begin{breakablealgorithm}
+            \caption{Naive line segment intersection}
+            \label{alg:line_intersection_naive}
+            \begin{algorithmic}[1]
+                \Input{a finite set $S$ consisting of $n$ line segments}
+                \Output{Intersection points of all segments in $S$}
+                \Runtime{$\LO(n^2)$} 
+                \Procedure{FindIntersections}{$S$}
+                    \State{$I \gets \emptyset$}
+                    \For{$s_1 \in S$} \Comment{$\LO(n^2)$}
+                        \For{$s_2 \in S \setminus \{s_1\}$} \Comment{$\LO(n)$}
+                            \State{$I \gets I \cup \text{Intersect}(s_1, s_2)$} \Comment{$\LO(1)$}
+                    \EndFor\EndFor
+                    \State\Return{$I$} 
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm} 
+
+    \subsection{Sweep line approach}
+        The most popular algorithm for solving this problem is due to Jon Bentley and Thomas Ottmann, who published it in 1979. It uses the concept of a so-called \emph{sweep line} to only check segments that are close to each other for intersections. To do so, the segments are sorted by their $y$-coordinates and then a horizontal line is swept from top to bottom. Whenever the line intersects a segment, we add it to a set of active segments. Whenever the line leaves a segment, we remove it from the set of active segments. Whenever two segments in the active queue change their position, they have intersected. Thus, we only need to test neighbors in the active queue for intersections.
+
+        \begin{breakablealgorithm}
+            \caption{Sweep line algorithm due to Jon Bentley and Thomas Ottmann}
+            \label{alg:line_intersection_sweep}
+            \begin{algorithmic}[1]
+                \Input{A finite set of $n$ line segements $S$ }
+                \Output{All intersections of the segments in $S$}
+                \Runtime{$\LO((n + \vert I \vert)\log(n))$}
+                \Procedure{FindIntersections}{$S$}
+                    \State{$Q_E \gets \text{FillEventQueue(S)}$} \Comment{$\LO(n)$}
+                    \State{$Q_A \gets \emptyset$}
+                    \State{$I \gets \emptyset$}
+                    \While{$\vert Q_E \vert > 0$} \Comment{$\LO((n + \vert I \vert)\log(n))$}
+                        \State{$p \gets Q_E.\text{pop()}$}
+                        \State{\text{HandleEventPoint}($p$, $I$)} \Comment{$\LO(\log(n))$}
+                    \EndWhile
+                    \State\Return{$I$}
+                \EndProcedure 
+                \Procedure{HandleEventPoint}{$p$, $I$}
+                \State{$s_p \gets \text{SegmentOf}(p)$}
+                    \If{$p$ is upper point}
+                        \State{$Q_A.\text{push}(s_p)$} \Comment{$\LO(\log(n))$}
+                    \ElsIf{$p$ is lower point}
+                        \State{$Q_A \gets Q_A \setminus \{s_p\}$} \Comment{$\LO(\log(n))$}
+                    \ElsIf{$p$ is intersection point}
+                        \State{$(s_i, s_j) \gets \text{InvolvedSegments}(p)$}
+                        \State{$Q_A \gets Q_A.\text{swap}(s_i, s_j)$} \Comment{$\LO(\log(n))$}
+                    \EndIf
+                    \For{$s_i, s_{i+1} \in Q_A$}
+                        \State{$p_{s_is_{i+1}} \gets \text{Intersect}(s_i, s_{i+1})$}
+                        \If{$p_{s_is_{i+1}}$ and $p_{s_is_{i+1}} \notin I$}
+                            \State{$I \gets I \cup \{p_{s_is_{i+1}}\}$}
+                        \EndIf
+                        \If{$p_{s_is_{i+1}}$ and $p_{s_is_{i+1}} \notin Q_E$}
+                            \State{$Q_E.\text{push}(p_{s_is_{i+1}})$} \Comment{$\LO(\log(n))$}
+                        \EndIf
+                    \EndFor
+                \EndProcedure
+            \end{algorithmic}
+        \end{breakablealgorithm} 
+
+        \begin{theorem}
+            The sweep line algorithm due to Jon Bentley and Thomas Ottmann has a runtime of $\LO((n + \vert I \vert)\log(n))$.
+        \end{theorem}
+        \begin{proof}
+            We proof by induction over the priority of the event. To do so, we assume that all events with a higher priority have been handled correctly. \\
+            Let $p$ be an intersection point and $U(p), L(p)$ and $C(p)$ be the segments, where $p$ is the upper or lower endpoint or a point contained inside the segment, respectively. \\
+            \underline{Case 1:} $p$ is an endpoint. In this case $p$ is stored in $Q_E$ in the beginning. Thus, all segments in $U(p)$ are accessible. Segments in $L(p)$ and $C(p)$ are stored in $Q_A$ when $p$ is reached by the induction assumption. \\
+            \underline{Case 2:} $p$ is an endpoint. In this case all segments containing $p$ are in $C(p)$. These segments are sorted by angle around $p$. Thus, there are neighboring $s_i$ and $s_j$ intersecting in $p$. Thus the intersection event in $p$ will be detected. \\
+            These two cases cover all possible events. Thus, the algorithm is correct, i.e. all intersections are correctly identified. 
+        \end{proof}
+        
+        \begin{remark}
+            One can implement the algorithm with $\LO(n)$ space-complexity. 
+        \end{remark} 
